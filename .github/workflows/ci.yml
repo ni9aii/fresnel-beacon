@@ -44,17 +44,15 @@ jobs:
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
-          command: idf.py build
+          command: idf.py build merge-bin --output build/merged-firmware.bin
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware
           path: |
-            build/fresnel-beacon.bin
+            build/merged-firmware.bin
             build/fresnel-beacon.elf
-            build/bootloader/bootloader.bin
-            build/partition_table/partition-table.bin
 
   simulate:
     name: Wokwi simulation
