@@ -37,12 +37,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-esp32s3-${{ hashFiles('**/*.c', '**/*.h', '**/CMakeLists.txt') }}
+          key: ccache-esp32s3-${{ hashFiles('main/**', 'components/**', 'CMakeLists.txt') }}
           restore-keys: ccache-esp32s3-
 
       - name: Build with ESP-IDF + ccache
         run: |
           docker run --rm \
+            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/project \
             -v $HOME/.ccache:/root/.ccache \
             -w /project \
