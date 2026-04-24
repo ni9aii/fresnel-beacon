@@ -44,7 +44,7 @@ jobs:
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
-          command: idf.py build merge-bin --output build/merged-firmware.bin
+          command: bash -c "idf.py build && idf.py merge-bin -o merged-firmware.bin"
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
