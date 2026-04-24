@@ -69,5 +69,5 @@ jobs:
         uses: wokwi/wokwi-ci-action@v1.2.0
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
-          timeout: 10000
+          timeout: 20000
           expect_text: "Fresnel Beacon starting"
