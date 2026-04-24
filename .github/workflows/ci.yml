@@ -8,12 +8,14 @@ on:
       - "components/**"
       - "CMakeLists.txt"
       - "sdkconfig.defaults"
+      - ".github/workflows/**"
   pull_request:
     paths:
       - "main/**"
       - "components/**"
       - "CMakeLists.txt"
       - "sdkconfig.defaults"
+      - ".github/workflows/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
