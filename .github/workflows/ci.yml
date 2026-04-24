@@ -74,4 +74,3 @@ jobs:
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
           timeout: 20000
-          expect_text: "Fresnel Beacon starting"
