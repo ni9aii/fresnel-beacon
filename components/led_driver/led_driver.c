@@ -1,5 +1,6 @@
 #include "led_driver.h"
 #include <string.h>
+#include "freertos/FreeRTOS.h"
 #include "driver/rmt_tx.h"
 #include "driver/rmt_encoder.h"
 #include "esp_log.h"
