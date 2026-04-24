@@ -43,7 +43,7 @@ jobs:
           path: build/
 
       - name: Run Wokwi simulation
-        uses: wokwi/wokwi-ci-action@v1
+        uses: wokwi/wokwi-ci-action@v1.2.0
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
           timeout: 10000
