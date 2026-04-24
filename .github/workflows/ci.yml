@@ -3,7 +3,21 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - "main/**"
+      - "components/**"
+      - "CMakeLists.txt"
+      - "sdkconfig.defaults"
   pull_request:
+    paths:
+      - "main/**"
+      - "components/**"
+      - "CMakeLists.txt"
+      - "sdkconfig.defaults"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
