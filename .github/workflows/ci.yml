@@ -44,6 +44,7 @@ jobs:
 
       - name: Build with ESP-IDF + ccache
         run: |
+          mkdir -p $HOME/.ccache
           docker run --rm \
             --user $(id -u):$(id -g) \
             -e CCACHE_DIR=/tmp/ccache \
