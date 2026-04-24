@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = "build/fresnel-beacon.bin"
+elf = "build/fresnel-beacon.elf"
