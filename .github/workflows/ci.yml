@@ -26,12 +26,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build with ESP-IDF v5.3
-        uses: espressif/esp-idf-ci-action@v1
+      - name: Cache ccache
+        uses: actions/cache@v4
         with:
-          esp_idf_version: v5.3.2
-          target: esp32s3
-          command: idf.py build
+          path: ~/.ccache
+          key: ccache-esp32s3-${{ hashFiles('**/*.c', '**/*.h', '**/CMakeLists.txt') }}
+          restore-keys: ccache-esp32s3-
+
+      - name: Build with ESP-IDF + ccache
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/project \
+            -v $HOME/.ccache:/root/.ccache \
+            -w /project \
+            espressif/idf:v5.3.2 \
+            idf.py --ccache build
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
