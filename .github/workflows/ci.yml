@@ -9,6 +9,8 @@ on:
       - "CMakeLists.txt"
       - "sdkconfig.defaults"
       - ".github/workflows/**"
+      - "diagram.json"
+      - "wokwi.toml"
   pull_request:
     paths:
       - "main/**"
@@ -16,6 +18,8 @@ on:
       - "CMakeLists.txt"
       - "sdkconfig.defaults"
       - ".github/workflows/**"
+      - "diagram.json"
+      - "wokwi.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
