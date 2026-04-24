@@ -4,3 +4,4 @@ sdkconfig.old
 dependencies.lock
 managed_components/
 .vscode/
+main/credentials.h

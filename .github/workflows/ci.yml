@@ -26,6 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Generate credentials.h from secrets
+        run: |
+          sed \
+            -e "s/your_network_name/${{ secrets.WIFI_SSID }}/" \
+            -e "s/your_password/${{ secrets.WIFI_PASS }}/" \
+            main/credentials.h.example > main/credentials.h
+
       - name: Cache ccache
         uses: actions/cache@v4
         with:
