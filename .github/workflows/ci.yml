@@ -69,6 +69,9 @@ jobs:
           name: firmware
           path: .
 
+      - name: List downloaded files
+        run: find . -maxdepth 3 \( -name "*.bin" -o -name "*.elf" \) | sort
+
       - name: Run Wokwi simulation
         uses: wokwi/wokwi-ci-action@v1.2.0
         with:
