@@ -26,8 +26,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build firmware
+  build-and-simulate:
+    name: Build and simulate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,33 +44,20 @@ jobs:
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
-          command: bash -c "idf.py build && idf.py merge-bin -o merged-firmware.bin"
+          command: idf.py build
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: build/merged-firmware.bin
-
-  simulate:
-    name: Wokwi simulation
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download firmware artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: firmware
-          path: .
+          path: |
+            build/fresnel-beacon.bin
+            build/fresnel-beacon.elf
 
       - name: Install wokwi-cli
         run: |
-          wget -q -O /usr/local/bin/wokwi-cli \
-            https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linuxstatic-x64
-          chmod +x /usr/local/bin/wokwi-cli
-          wokwi-cli --version
+          curl -L https://wokwi.com/ci/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Run Wokwi simulation
         env:
