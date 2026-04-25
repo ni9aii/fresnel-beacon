@@ -1,5 +1,5 @@
 [wokwi]
 version = 1
-firmware = "build/merged-firmware.bin"
+firmware = "merged-firmware.bin"
 elf = "build/fresnel-beacon.elf"
 scenario = "scenario.yaml"
