@@ -74,3 +74,4 @@ jobs:
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
           timeout: 20000
+          scenario: scenario.yaml
