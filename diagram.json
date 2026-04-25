@@ -22,9 +22,11 @@
     }
   ],
   "connections": [
-    ["esp32:39", "matrix:DIN", "green", []],
-    ["esp32:GND.1", "matrix:GND", "black", []],
-    ["esp32:5V",    "matrix:VCC", "red",   []]
+    ["esp32:TX",  "$serialMonitor:RX", "", []],
+    ["esp32:RX",  "$serialMonitor:TX", "", []],
+    ["esp32:39",  "matrix:DIN",        "green", []],
+    ["esp32:GND.1", "matrix:GND",      "black", []],
+    ["esp32:5V",  "matrix:VCC",        "red",   []]
   ],
   "dependencies": {}
 }
