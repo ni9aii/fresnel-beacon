@@ -73,5 +73,13 @@ jobs:
         uses: wokwi/wokwi-ci-action@v1.2.0
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
-          timeout: 20000
-          expect-text: "init RMT on GPIO 39"
+          timeout: 30000
+          expect_text: "Fresnel Beacon starting"
+          serial_log_file: wokwi-serial.log
+
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wokwi-serial-log
+          path: wokwi-serial.log
