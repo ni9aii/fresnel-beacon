@@ -1,3 +1,4 @@
+version: 1
 name: Boot check
 steps:
   - wait-serial: "Fresnel Beacon starting"
