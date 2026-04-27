@@ -68,6 +68,7 @@ jobs:
           WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
         run: |
           wokwi-cli --timeout 30000 \
+            --scenario scenario.yaml \
             --serial-log-file wokwi-serial.log \
             .
 
