@@ -50,19 +50,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check required secrets
-        run: |
-          [ -n "${{ secrets.WIFI_SSID }}" ]        || { echo "::error::WIFI_SSID secret is not set";        exit 1; }
-          [ -n "${{ secrets.WOKWI_CLI_TOKEN }}" ]  || { echo "::error::WOKWI_CLI_TOKEN secret is not set";  exit 1; }
-
-      - name: Generate credentials.h from secrets
+      - name: Generate credentials.h
+        env:
+          WIFI_SSID: ${{ secrets.WIFI_SSID }}
+          WIFI_PASS: ${{ secrets.WIFI_PASS }}
         run: |
           python3 -c "
-          import pathlib, sys
+          import pathlib, os
           tpl = pathlib.Path('main/credentials.h.example').read_text()
-          out = tpl.replace('your_network_name', sys.argv[1]).replace('your_password', sys.argv[2])
-          pathlib.Path('main/credentials.h').write_text(out)
-          " "${{ secrets.WIFI_SSID }}" "${{ secrets.WIFI_PASS }}"
+          ssid   = os.environ.get('WIFI_SSID') or 'your_network_name'
+          passwd = os.environ.get('WIFI_PASS') or 'your_password'
+          pathlib.Path('main/credentials.h').write_text(
+              tpl.replace('your_network_name', ssid).replace('your_password', passwd))
+          "
 
       - name: Cache ESP-IDF tools
         uses: actions/cache@v4
@@ -86,12 +86,14 @@ jobs:
             build/fresnel-beacon.elf
 
       - name: Install wokwi-cli
+        if: ${{ secrets.WOKWI_CLI_TOKEN != '' }}
         run: |
           curl -Lo wokwi-cli https://github.com/wokwi/wokwi-cli/releases/download/v0.26.1/wokwi-cli-linuxstatic-x64
           chmod +x wokwi-cli
           echo "$PWD" >> $GITHUB_PATH
 
       - name: Run Wokwi simulation
+        if: ${{ secrets.WOKWI_CLI_TOKEN != '' }}
         env:
           WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
         run: |
@@ -101,7 +103,7 @@ jobs:
             .
 
       - name: Upload serial log
-        if: always()
+        if: ${{ always() && secrets.WOKWI_CLI_TOKEN != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: wokwi-serial-log
