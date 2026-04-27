@@ -1,8 +1,8 @@
 #include "beacon_animation.h"
+#include "beacon_math.h"
 #include "led_driver.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include <math.h>
 
 #define FRAME_MS        33      // ~30 fps
 #define RPM             8.0f   // beacon rotation speed
@@ -14,14 +14,6 @@
 #define BEAM_R  255
 #define BEAM_G  160
 #define BEAM_B   40
-
-// Waveshare ESP32-S3-Matrix wires rows in serpentine order
-static inline uint8_t pixel_index(int x, int y)
-{
-    return (y % 2 == 0)
-        ? (uint8_t)(y * LED_MATRIX_COLS + x)
-        : (uint8_t)(y * LED_MATRIX_COLS + (LED_MATRIX_COLS - 1 - x));
-}
 
 void beacon_animation_task(void *arg)
 {
@@ -44,10 +36,7 @@ void beacon_animation_task(void *arg)
 
                 float pixel_angle = atan2f(dy, dx);
 
-                // Angular distance behind the beam leading edge
-                float diff = angle - pixel_angle;
-                if      (diff >  (float)M_PI) diff -= 2.0f * (float)M_PI;
-                else if (diff < -(float)M_PI) diff += 2.0f * (float)M_PI;
+                float diff = angle_diff(angle, pixel_angle);
 
                 if (diff < 0.0f || diff > TRAIL_RADIANS) continue;
 

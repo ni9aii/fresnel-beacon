@@ -12,6 +12,7 @@ on:
       - "diagram.json"
       - "wokwi.toml"
       - "scenario.yaml"
+      - "test/**"
   pull_request:
     paths:
       - "main/**"
@@ -22,12 +23,22 @@ on:
       - "diagram.json"
       - "wokwi.toml"
       - "scenario.yaml"
+      - "test/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and run tests
+        run: gcc -I. test/test_beacon_math.c -lm -o test_runner && ./test_runner
+
   analyze:
     name: Static analysis
     runs-on: ubuntu-24.04
@@ -40,6 +51,7 @@ jobs:
           cppcheck \
             --error-exitcode=1 \
             --suppress=missingIncludeSystem \
+            --suppress=missingInclude \
             --enable=warning,performance,portability \
             --inline-suppr \
             main/ components/
