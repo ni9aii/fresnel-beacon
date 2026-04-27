@@ -11,6 +11,7 @@ on:
       - ".github/workflows/**"
       - "diagram.json"
       - "wokwi.toml"
+      - "scenario.yaml"
   pull_request:
     paths:
       - "main/**"
@@ -20,6 +21,7 @@ on:
       - ".github/workflows/**"
       - "diagram.json"
       - "wokwi.toml"
+      - "scenario.yaml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,16 +30,18 @@ concurrency:
 jobs:
   build-and-simulate:
     name: Build and simulate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Generate credentials.h from secrets
         run: |
-          sed \
-            -e "s/your_network_name/${{ secrets.WIFI_SSID }}/" \
-            -e "s/your_password/${{ secrets.WIFI_PASS }}/" \
-            main/credentials.h.example > main/credentials.h
+          python3 -c "
+          import pathlib, sys
+          tpl = pathlib.Path('main/credentials.h.example').read_text()
+          out = tpl.replace('your_network_name', sys.argv[1]).replace('your_password', sys.argv[2])
+          pathlib.Path('main/credentials.h').write_text(out)
+          " "${{ secrets.WIFI_SSID }}" "${{ secrets.WIFI_PASS }}"
 
       - name: Build with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
@@ -64,7 +68,6 @@ jobs:
           WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
         run: |
           wokwi-cli --timeout 30000 \
-            --expect-text "Fresnel Beacon starting" \
             --serial-log-file wokwi-serial.log \
             .
 
