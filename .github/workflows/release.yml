@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate credentials.h
+        run: cp main/credentials.h.example main/credentials.h
+
+      - name: Cache ESP-IDF tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: esp-idf-v5.3.2-${{ runner.os }}
+
+      - name: Build with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3.2
+          target: esp32s3
+          command: idf.py build
+
+      - name: Create GitHub Release
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "fresnel-beacon ${{ github.ref_name }}" \
+            --notes "ESP32-S3 firmware for WS2812B 8×8 matrix lighthouse lamp.
+          Flash with: esptool.py write_flash 0x0 fresnel-beacon.bin" \
+            build/fresnel-beacon.bin
+        env:
+          GH_TOKEN: ${{ github.token }}

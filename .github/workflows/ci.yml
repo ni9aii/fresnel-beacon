@@ -28,11 +28,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run cppcheck
+        run: |
+          sudo apt-get install -y cppcheck
+          cppcheck \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --enable=warning,performance,portability \
+            --inline-suppr \
+            main/ components/
+
   build-and-simulate:
     name: Build and simulate
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          [ -n "${{ secrets.WIFI_SSID }}" ]        || { echo "::error::WIFI_SSID secret is not set";        exit 1; }
+          [ -n "${{ secrets.WOKWI_CLI_TOKEN }}" ]  || { echo "::error::WOKWI_CLI_TOKEN secret is not set";  exit 1; }
 
       - name: Generate credentials.h from secrets
         run: |
@@ -42,6 +63,12 @@ jobs:
           out = tpl.replace('your_network_name', sys.argv[1]).replace('your_password', sys.argv[2])
           pathlib.Path('main/credentials.h').write_text(out)
           " "${{ secrets.WIFI_SSID }}" "${{ secrets.WIFI_PASS }}"
+
+      - name: Cache ESP-IDF tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: esp-idf-v5.3.2-${{ runner.os }}
 
       - name: Build with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
@@ -60,8 +87,9 @@ jobs:
 
       - name: Install wokwi-cli
         run: |
-          curl -L https://wokwi.com/ci/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          curl -Lo wokwi-cli https://github.com/wokwi/wokwi-cli/releases/download/v0.26.1/wokwi-cli-linuxstatic-x64
+          chmod +x wokwi-cli
+          echo "$PWD" >> $GITHUB_PATH
 
       - name: Run Wokwi simulation
         env:
