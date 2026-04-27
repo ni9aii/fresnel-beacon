@@ -3,5 +3,3 @@ name: Boot check
 steps:
   - wait-serial: "Fresnel Beacon starting"
   - wait-serial: "init RMT on GPIO 39"
-  - finish:
-      exit-code: 0
