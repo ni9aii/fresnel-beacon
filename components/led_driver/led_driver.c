@@ -27,7 +27,7 @@ static rmt_encoder_handle_t s_led_encoder;
 // GRB byte order as required by WS2812B
 static uint8_t s_pixels[LED_MATRIX_LEN * 3];
 
-esp_err_t led_driver_init(void)
+void led_driver_init(void)
 {
     ESP_LOGI(TAG, "init RMT on GPIO %d, %d LEDs", LED_MATRIX_GPIO, LED_MATRIX_LEN);
 
@@ -35,7 +35,7 @@ esp_err_t led_driver_init(void)
         .gpio_num          = LED_MATRIX_GPIO,
         .clk_src           = RMT_CLK_SRC_DEFAULT,
         .resolution_hz     = RMT_RESOLUTION_HZ,
-        .mem_block_symbols = 64,
+        .mem_block_symbols = 128,
         .trans_queue_depth = 4,
     };
     ESP_ERROR_CHECK(rmt_new_tx_channel(&chan_cfg, &s_led_chan));
@@ -43,7 +43,7 @@ esp_err_t led_driver_init(void)
     ESP_ERROR_CHECK(rmt_enable(s_led_chan));
 
     led_driver_clear();
-    return led_driver_flush();
+    ESP_ERROR_CHECK(led_driver_flush());
 }
 
 esp_err_t led_driver_set_pixel(uint8_t index, rgb_t color)

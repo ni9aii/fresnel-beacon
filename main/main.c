@@ -10,7 +10,7 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Fresnel Beacon starting");
 
-    ESP_ERROR_CHECK(led_driver_init());
+    led_driver_init();
 
     xTaskCreate(beacon_animation_task, "beacon", 4096, NULL, 5, NULL);
 }

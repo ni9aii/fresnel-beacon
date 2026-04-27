@@ -46,8 +46,8 @@ void beacon_animation_task(void *arg)
 
                 // Angular distance behind the beam leading edge
                 float diff = angle - pixel_angle;
-                while (diff >  (float)M_PI) diff -= 2.0f * (float)M_PI;
-                while (diff < -(float)M_PI) diff += 2.0f * (float)M_PI;
+                if      (diff >  (float)M_PI) diff -= 2.0f * (float)M_PI;
+                else if (diff < -(float)M_PI) diff += 2.0f * (float)M_PI;
 
                 if (diff < 0.0f || diff > TRAIL_RADIANS) continue;
 
@@ -64,10 +64,11 @@ void beacon_animation_task(void *arg)
             }
         }
 
-        led_driver_flush();
+        ESP_ERROR_CHECK(led_driver_flush());
 
         angle += omega * dt;
-        if (angle > (float)M_PI) angle -= 2.0f * (float)M_PI;
+        if      (angle >  (float)M_PI) angle -= 2.0f * (float)M_PI;
+        else if (angle < -(float)M_PI) angle += 2.0f * (float)M_PI;
 
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(FRAME_MS));
     }
