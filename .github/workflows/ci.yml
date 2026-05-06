@@ -97,11 +97,7 @@ jobs:
           command: idf.py build
 
       - name: Firmware size report
-        run: |
-          . $HOME/.espressif/v5.3.2/esp-idf/export.sh
-          idf.py size
-          echo "--- Binary file size ---"
-          ls -lh build/fresnel-beacon.bin
+        run: ls -lh build/*.bin build/*.elf 2>/dev/null || true
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
