@@ -37,7 +37,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build and run tests
-        run: gcc -I. test/test_beacon_math.c -lm -o test_runner && ./test_runner
+        run: |
+          gcc -I. test/test_beacon_math.c -lm -o test_beacon_math && ./test_beacon_math
+          gcc -I. test/test_led_driver.c -o test_led_driver && ./test_led_driver
 
   analyze:
     name: Static analysis
@@ -63,6 +65,9 @@ jobs:
       WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Display scenario file
+        run: cat scenario.yaml
 
       - name: Generate credentials.h
         env:
@@ -90,6 +95,13 @@ jobs:
           esp_idf_version: v5.3.2
           target: esp32s3
           command: idf.py build
+
+      - name: Firmware size report
+        run: |
+          . $HOME/.espressif/v5.3.2/esp-idf/export.sh
+          idf.py size
+          echo "--- Binary file size ---"
+          ls -lh build/fresnel-beacon.bin
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4

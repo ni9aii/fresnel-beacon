@@ -3,9 +3,12 @@
 #include "led_driver.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_log.h"
+#include "esp_task_wdt.h"
 
 #define FRAME_MS        33      // ~30 fps
 #define RPM             8.0f   // beacon rotation speed
+#define STACK_LOG_MS    30000   // stack log interval (30s)
 
 // Beam trail: how many radians behind the leading edge stay lit
 #define TRAIL_RADIANS   (M_PI / 2.5f)
@@ -21,9 +24,14 @@ void beacon_animation_task(void *arg)
     const float cy    = (LED_MATRIX_ROWS - 1) / 2.0f;
     const float omega = 2.0f * (float)M_PI * RPM / 60.0f; // rad/s
     const float dt    = FRAME_MS / 1000.0f;
+    static const char *TAG = "beacon";
 
     float angle = 0.0f;
     TickType_t last_wake = xTaskGetTickCount();
+    uint32_t iter = 0;
+
+    ESP_ERROR_CHECK(esp_task_wdt_add(pdMS_TO_TICKS(5000)));
+    ESP_LOGI(TAG, "Task watchdog registered (5s timeout)");
 
     while (1) {
         led_driver_clear();
@@ -58,6 +66,14 @@ void beacon_animation_task(void *arg)
         angle += omega * dt;
         if      (angle >  (float)M_PI) angle -= 2.0f * (float)M_PI;
         else if (angle < -(float)M_PI) angle += 2.0f * (float)M_PI;
+
+        iter++;
+        if (iter * FRAME_MS >= STACK_LOG_MS) {
+            ESP_LOGI(TAG, "Stack high water mark: %u", uxTaskGetStackHighWaterMark(NULL));
+            iter = 0;
+        }
+
+        esp_task_wdt_reset();
 
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(FRAME_MS));
     }
