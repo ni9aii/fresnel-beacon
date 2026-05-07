@@ -1,4 +1,5 @@
 #include "led_driver.h"
+#include "ipc.h"
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "driver/rmt_tx.h"
@@ -51,27 +52,65 @@ esp_err_t led_driver_set_pixel(uint8_t index, rgb_t color)
     if (index >= LED_MATRIX_LEN) {
         return ESP_ERR_INVALID_ARG;
     }
+
+    if (led_mutex != NULL) {
+        if (xSemaphoreTake(led_mutex, portMAX_DELAY) != pdTRUE) {
+            ESP_LOGE(TAG, "set_pixel: mutex take failed");
+            return ESP_ERR_TIMEOUT;
+        }
+    }
+
     // WS2812B expects GRB, not RGB
     s_pixels[index * 3 + 0] = color.g;
     s_pixels[index * 3 + 1] = color.r;
     s_pixels[index * 3 + 2] = color.b;
+
+    if (led_mutex != NULL) {
+        xSemaphoreGive(led_mutex);
+    }
     return ESP_OK;
 }
 
 void led_driver_clear(void)
 {
+    if (led_mutex != NULL) {
+        if (xSemaphoreTake(led_mutex, portMAX_DELAY) != pdTRUE) {
+            ESP_LOGE(TAG, "clear: mutex take failed");
+            return;
+        }
+    }
+
     memset(s_pixels, 0, sizeof(s_pixels));
+
+    if (led_mutex != NULL) {
+        xSemaphoreGive(led_mutex);
+    }
 }
 
 esp_err_t led_driver_flush(void)
 {
+    if (led_mutex != NULL) {
+        if (xSemaphoreTake(led_mutex, portMAX_DELAY) != pdTRUE) {
+            ESP_LOGE(TAG, "flush: mutex take failed");
+            return ESP_ERR_TIMEOUT;
+        }
+    }
+
     // Wait for any previous transmission before writing new frame
     esp_err_t ret = rmt_tx_wait_all_done(s_led_chan, portMAX_DELAY);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "rmt_tx_wait_all_done failed: %s", esp_err_to_name(ret));
+        if (led_mutex != NULL) {
+            xSemaphoreGive(led_mutex);
+        }
         return ret;
     }
 
     rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
-    return rmt_transmit(s_led_chan, s_led_encoder, s_pixels, sizeof(s_pixels), &tx_cfg);
+    ret = rmt_transmit(s_led_chan, s_led_encoder, s_pixels, sizeof(s_pixels), &tx_cfg);
+
+    if (led_mutex != NULL) {
+        xSemaphoreGive(led_mutex);
+    }
+    return ret;
 }

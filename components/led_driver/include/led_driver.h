@@ -7,8 +7,7 @@
 /**
  * @brief LED driver for WS2812B matrix on Waveshare ESP32-S3-Matrix.
  *
- * @note NOT thread-safe. All functions must be called from the same task,
- *       or externally synchronised (e.g. with a mutex).
+ * @note Thread-safe when ipc_init() has been called (uses led_mutex).
  */
 
 void      led_driver_init(void);
