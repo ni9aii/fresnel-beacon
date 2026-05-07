@@ -66,7 +66,11 @@ void led_driver_clear(void)
 esp_err_t led_driver_flush(void)
 {
     // Wait for any previous transmission before writing new frame
-    ESP_ERROR_CHECK(rmt_tx_wait_all_done(s_led_chan, portMAX_DELAY));
+    esp_err_t ret = rmt_tx_wait_all_done(s_led_chan, portMAX_DELAY);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "rmt_tx_wait_all_done failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
 
     rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
     return rmt_transmit(s_led_chan, s_led_encoder, s_pixels, sizeof(s_pixels), &tx_cfg);

@@ -30,8 +30,8 @@ void beacon_animation_task(void *arg)
     TickType_t last_wake = xTaskGetTickCount();
     uint32_t iter = 0;
 
-    ESP_ERROR_CHECK(esp_task_wdt_add(pdMS_TO_TICKS(5000)));
-    ESP_LOGI(TAG, "Task watchdog registered (5s timeout)");
+    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
+    ESP_LOGI(TAG, "Task watchdog registered (current task)");
 
     while (1) {
         led_driver_clear();
@@ -61,7 +61,10 @@ void beacon_animation_task(void *arg)
             }
         }
 
-        ESP_ERROR_CHECK(led_driver_flush());
+        esp_err_t flush_ret = led_driver_flush();
+        if (flush_ret != ESP_OK) {
+            ESP_LOGE(TAG, "led_driver_flush failed: %s", esp_err_to_name(flush_ret));
+        }
 
         angle += omega * dt;
         if      (angle >  (float)M_PI) angle -= 2.0f * (float)M_PI;

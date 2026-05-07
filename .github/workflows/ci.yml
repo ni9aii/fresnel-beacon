@@ -34,7 +34,7 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 
       - name: Build and run tests
         run: |
@@ -45,7 +45,7 @@ jobs:
     name: Static analysis
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 
       - name: Run cppcheck
         run: |
@@ -64,7 +64,7 @@ jobs:
     env:
       WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 
       - name: Display scenario file
         run: cat scenario.yaml
@@ -79,18 +79,22 @@ jobs:
           tpl = pathlib.Path('main/credentials.h.example').read_text()
           ssid   = os.environ.get('WIFI_SSID') or 'your_network_name'
           passwd = os.environ.get('WIFI_PASS') or 'your_password'
+          # Validate no C-string dangerous characters
+          for val, name in [(ssid, 'SSID'), (passwd, 'PASS')]:
+              if any(c in val for c in '\"\\\n\r'):
+                  raise ValueError(f'{name} contains invalid C-string characters')
           pathlib.Path('main/credentials.h').write_text(
               tpl.replace('your_network_name', ssid).replace('your_password', passwd))
           "
 
       - name: Cache ESP-IDF tools
-        uses: actions/cache@v4
+        uses: actions/cache@1bd1b32ce435978fbf4a2e56d26d9f96b5807ac4  # v4.2.0
         with:
           path: ~/.espressif
           key: esp-idf-v5.3.2-${{ runner.os }}
 
       - name: Build with ESP-IDF
-        uses: espressif/esp-idf-ci-action@v1
+        uses: espressif/esp-idf-ci-action@8cd22ae10c229488e7ab129c8bcdc0aedd8a7e20  # v1.1.0
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
@@ -100,17 +104,25 @@ jobs:
         run: ls -lh build/*.bin build/*.elf 2>/dev/null || true
 
       - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
+          retention-days: 7
           name: firmware
           path: |
             build/fresnel-beacon.bin
             build/fresnel-beacon.elf
 
+      - name: Wokwi token not set
+        if: env.WOKWI_CLI_TOKEN == ''
+        run: echo "::warning::WOKWI_CLI_TOKEN not set, simulation skipped"
+
       - name: Install wokwi-cli
         if: env.WOKWI_CLI_TOKEN != ''
+        env:
+          WOKWI_CLI_SHA256: 72d968150babaf7532c47ab7741eb85a95a6c3e3cfef91ffbcfdb677fd38e811
         run: |
           curl -Lo wokwi-cli https://github.com/wokwi/wokwi-cli/releases/download/v0.26.1/wokwi-cli-linuxstatic-x64
+          echo "$WOKWI_CLI_SHA256  wokwi-cli" | sha256sum -c
           chmod +x wokwi-cli
           echo "$PWD" >> $GITHUB_PATH
 
@@ -124,7 +136,8 @@ jobs:
 
       - name: Upload serial log
         if: always() && env.WOKWI_CLI_TOKEN != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
+          retention-days: 7
           name: wokwi-serial-log
           path: wokwi-serial.log

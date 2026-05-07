@@ -5,30 +5,67 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.ref }}
+
 jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Build and run tests
+        run: |
+          gcc -I. test/test_beacon_math.c -lm -o test_beacon_math && ./test_beacon_math
+          gcc -I. test/test_led_driver.c -o test_led_driver && ./test_led_driver
+
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Run cppcheck
+        run: |
+          sudo apt-get install -y cppcheck
+          cppcheck \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --suppress=missingInclude \
+            --enable=warning,performance,portability \
+            --inline-suppr \
+            main/ components/
+
   release:
     name: Build and release
+    needs: [test, analyze]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 
       - name: Generate credentials.h
         run: cp main/credentials.h.example main/credentials.h
 
       - name: Cache ESP-IDF tools
-        uses: actions/cache@v4
+        uses: actions/cache@1bd1b32ce435978fbf4a2e56d26d9f96b5807ac4  # v4.2.0
         with:
           path: ~/.espressif
           key: esp-idf-v5.3.2-${{ runner.os }}
 
       - name: Build with ESP-IDF
-        uses: espressif/esp-idf-ci-action@v1
+        uses: espressif/esp-idf-ci-action@8cd22ae10c229488e7ab129c8bcdc0aedd8a7e20  # v1.1.0
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
           command: idf.py build
+
+      - name: Generate checksums
+        run: |
+          sha256sum build/fresnel-beacon.bin > build/fresnel-beacon.bin.sha256
+          sha256sum build/fresnel-beacon.elf > build/fresnel-beacon.elf.sha256
 
       - name: Create GitHub Release
         run: |
@@ -36,6 +73,9 @@ jobs:
             --title "fresnel-beacon ${{ github.ref_name }}" \
             --notes "ESP32-S3 firmware for WS2812B 8×8 matrix lighthouse lamp.
           Flash with: esptool.py write_flash 0x0 fresnel-beacon.bin" \
-            build/fresnel-beacon.bin
+            build/fresnel-beacon.bin \
+            build/fresnel-beacon.bin.sha256 \
+            build/fresnel-beacon.elf \
+            build/fresnel-beacon.elf.sha256
         env:
           GH_TOKEN: ${{ github.token }}
