@@ -1,30 +1,55 @@
 #include "beacon_animation.h"
 #include "beacon_math.h"
 #include "led_driver.h"
+#include "ipc.h"
+#include "config_manager.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_task_wdt.h"
 
-// NOTE: LED driver is NOT thread-safe. For Phase 2 (WiFi/web UI), add mutex in led_driver.
-
 #define FRAME_MS        33      // ~30 fps
-#define RPM             8.0f   // beacon rotation speed
 #define STACK_LOG_MS    30000   // stack log interval (30s)
 
 // Beam trail: how many radians behind the leading edge stay lit
 #define TRAIL_RADIANS   (M_PI / 2.5f)
 
-// Beam color: warm amber, classic lighthouse
-#define BEAM_R  255
-#define BEAM_G  160
-#define BEAM_B   40
+static inline rgb_t unpack_rgb(uint32_t rgb)
+{
+    return (rgb_t){
+        .r = (uint8_t)((rgb >> 16) & 0xFF),
+        .g = (uint8_t)((rgb >>  8) & 0xFF),
+        .b = (uint8_t)( rgb        & 0xFF),
+    };
+}
+
+static void process_ipc_commands(void)
+{
+    ipc_cmd_t cmd;
+    while (xQueueReceive(ipc_queue, &cmd, 0) == pdTRUE) {
+        switch (cmd.type) {
+            case IPC_CMD_SET_SPEED:
+                config_manager_set_speed(cmd.data.speed_rpm);
+                break;
+            case IPC_CMD_SET_COLOR:
+                config_manager_set_color(cmd.data.color_rgb);
+                break;
+            case IPC_CMD_SET_MODE:
+                config_manager_set_mode(cmd.data.mode);
+                break;
+            case IPC_CMD_SET_BRIGHTNESS:
+                config_manager_set_brightness(cmd.data.brightness);
+                break;
+            default:
+                break;
+        }
+    }
+}
 
 void beacon_animation_task(void *arg)
 {
     const float cx    = (LED_MATRIX_COLS - 1) / 2.0f;
     const float cy    = (LED_MATRIX_ROWS - 1) / 2.0f;
-    const float omega = 2.0f * (float)M_PI * RPM / 60.0f; // rad/s
     const float dt    = FRAME_MS / 1000.0f;
     static const char *TAG = "beacon";
 
@@ -36,6 +61,25 @@ void beacon_animation_task(void *arg)
     ESP_LOGI(TAG, "Task watchdog registered (current task)");
 
     while (1) {
+        /* Drain IPC command queue (non-blocking) */
+        if (ipc_queue != NULL) {
+            process_ipc_commands();
+        }
+
+        /* Read current runtime config */
+        runtime_config_t cfg = {
+            .speed_rpm   = 8.0f,
+            .mode        = 0,
+            .brightness  = 1.0f,
+            .color_rgb   = 0xFFA028,
+        };
+        if (config_manager_get(&cfg) != ESP_OK) {
+            ESP_LOGW(TAG, "config_manager_get failed, using defaults");
+        }
+
+        const float omega = 2.0f * (float)M_PI * cfg.speed_rpm / 60.0f; // rad/s
+        rgb_t beam_color  = unpack_rgb(cfg.color_rgb);
+
         led_driver_clear();
 
         for (int y = 0; y < LED_MATRIX_ROWS; y++) {
@@ -52,12 +96,13 @@ void beacon_animation_task(void *arg)
 
                 // Quadratic falloff from leading edge → trail tip
                 float t = 1.0f - (diff / TRAIL_RADIANS);
-                float brightness = t * t;
+                float brightness = t * t * cfg.brightness;
+                if (brightness > 1.0f) brightness = 1.0f;
 
                 rgb_t color = {
-                    .r = (uint8_t)(BEAM_R * brightness),
-                    .g = (uint8_t)(BEAM_G * brightness),
-                    .b = (uint8_t)(BEAM_B * brightness),
+                    .r = (uint8_t)(beam_color.r * brightness),
+                    .g = (uint8_t)(beam_color.g * brightness),
+                    .b = (uint8_t)(beam_color.b * brightness),
                 };
                 led_driver_set_pixel(pixel_index(x, y), color);
             }
