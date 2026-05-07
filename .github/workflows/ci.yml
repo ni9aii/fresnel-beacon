@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:
@@ -80,9 +83,11 @@ jobs:
           tpl = pathlib.Path('main/credentials.h.example').read_text()
           ssid   = os.environ.get('WIFI_SSID') or 'your_network_name'
           passwd = os.environ.get('WIFI_PASS') or 'your_password'
-          # Validate no C-string dangerous characters
+          # Validate no C-string dangerous characters and non-empty
           for val, name in [(ssid, 'SSID'), (passwd, 'PASS')]:
-              if any(c in val for c in '\"\\\n\r'):
+              if not val.strip():
+                  raise ValueError(f'{name} must not be empty')
+              if any(c in val for c in '"\\\n\r'):
                   raise ValueError(f'{name} contains invalid C-string characters')
           pathlib.Path('main/credentials.h').write_text(
               tpl.replace('your_network_name', ssid).replace('your_password', passwd))

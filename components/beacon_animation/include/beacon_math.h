@@ -6,6 +6,9 @@
 // Waveshare ESP32-S3-Matrix wires rows in serpentine order
 static inline uint8_t pixel_index(int x, int y)
 {
+    if ((unsigned)x >= LED_MATRIX_COLS || (unsigned)y >= LED_MATRIX_ROWS) {
+        return 0; // safe fallback for out-of-bounds (caller should guarantee valid coords)
+    }
     return (y % 2 == 0)
         ? (uint8_t)(y * LED_MATRIX_COLS + x)
         : (uint8_t)(y * LED_MATRIX_COLS + (LED_MATRIX_COLS - 1 - x));

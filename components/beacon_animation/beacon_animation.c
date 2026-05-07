@@ -63,6 +63,8 @@ void beacon_animation_task(void *arg)
             }
         }
 
+        esp_task_wdt_reset();
+
         esp_err_t flush_ret = led_driver_flush();
         if (flush_ret != ESP_OK) {
             ESP_LOGE(TAG, "led_driver_flush failed: %s", esp_err_to_name(flush_ret));
