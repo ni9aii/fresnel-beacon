@@ -13,17 +13,10 @@
 #include <string.h>
 #include <stdint.h>
 
+/* Pull in shared types and constants (no ESP-IDF dependencies) */
+#include "components/led_driver/include/led_driver_types.h"
+
 /* ---- mock: led_driver internals ---- */
-
-#define LED_MATRIX_COLS   8
-#define LED_MATRIX_ROWS   8
-#define LED_MATRIX_LEN    (LED_MATRIX_COLS * LED_MATRIX_ROWS)
-
-typedef struct {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} rgb_t;
 
 /* Replicate the GRB buffer from led_driver.c */
 static uint8_t s_pixels[LED_MATRIX_LEN * 3];

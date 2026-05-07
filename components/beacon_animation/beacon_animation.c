@@ -6,6 +6,8 @@
 #include "esp_log.h"
 #include "esp_task_wdt.h"
 
+// NOTE: LED driver is NOT thread-safe. For Phase 2 (WiFi/web UI), add mutex in led_driver.
+
 #define FRAME_MS        33      // ~30 fps
 #define RPM             8.0f   // beacon rotation speed
 #define STACK_LOG_MS    30000   // stack log interval (30s)

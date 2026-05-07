@@ -5,5 +5,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
 CONFIG_ESP_CONSOLE_UART_NUM=0
 CONFIG_ESP_TASK_WDT=y
+# CONFIG_ESP_TASK_WDT_PANIC=n is intentional for development:
+# a panic reboot would mask the root cause when debugging via serial.
+# Switch to =y in production to ensure automatic recovery.
 CONFIG_ESP_TASK_WDT_PANIC=n
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=5

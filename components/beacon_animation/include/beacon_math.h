@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <math.h>
-#include "led_driver.h"
+#include "led_driver_types.h"
 
 // Waveshare ESP32-S3-Matrix wires rows in serpentine order
 static inline uint8_t pixel_index(int x, int y)
