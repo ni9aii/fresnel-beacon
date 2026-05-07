@@ -5,6 +5,7 @@
 #include "beacon_animation.h"
 #include "ipc.h"
 #include "config_manager.h"
+#include "nvs_flash.h"
 
 static const char *TAG = "main";
 
@@ -12,8 +13,20 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Fresnel Beacon starting");
 
+    /* Initialise NVS before config manager so we can restore saved settings */
+    esp_err_t nvs_ret = nvs_flash_init();
+    if (nvs_ret == ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(TAG, "NVS init error (%s), attempting erase and re-init", esp_err_to_name(nvs_ret));
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_ret = nvs_flash_init();
+    }
+    if (nvs_ret != ESP_OK) {
+        ESP_LOGW(TAG, "NVS unavailable (%s), continuing with RAM defaults", esp_err_to_name(nvs_ret));
+    }
+
     ESP_ERROR_CHECK(ipc_init());
     ESP_ERROR_CHECK(config_manager_init());
+    ESP_ERROR_CHECK(config_manager_load_from_nvs());
 
     led_driver_init();
 
