@@ -3,12 +3,17 @@
 #include "esp_log.h"
 #include "led_driver.h"
 #include "beacon_animation.h"
+#include "ipc.h"
+#include "config_manager.h"
 
 static const char *TAG = "main";
 
 void app_main(void)
 {
     ESP_LOGI(TAG, "Fresnel Beacon starting");
+
+    ESP_ERROR_CHECK(ipc_init());
+    ESP_ERROR_CHECK(config_manager_init());
 
     led_driver_init();
 
