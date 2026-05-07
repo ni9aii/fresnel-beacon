@@ -5,9 +5,26 @@
 #include "beacon_animation.h"
 #include "ipc.h"
 #include "config_manager.h"
+#include "wifi_manager.h"
 #include "nvs_flash.h"
 
 static const char *TAG = "main";
+
+static void wifi_monitor_task(void *pvParameters)
+{
+    (void)pvParameters;
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(30000));
+        if (wifi_manager_get_status() == WIFI_STATUS_CONNECTED) {
+            wifi_ap_record_t ap_info;
+            if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+                ESP_LOGI(TAG, "WiFi RSSI: %d dBm", ap_info.rssi);
+            } else {
+                ESP_LOGW(TAG, "WiFi RSSI unavailable");
+            }
+        }
+    }
+}
 
 void app_main(void)
 {
@@ -28,6 +45,8 @@ void app_main(void)
     ESP_ERROR_CHECK(config_manager_init());
     ESP_ERROR_CHECK(config_manager_load_from_nvs());
 
+    ESP_ERROR_CHECK(wifi_manager_init());
+
     led_driver_init();
 
     const size_t stack_size = 4096;
@@ -40,4 +59,11 @@ void app_main(void)
         }
     }
     ESP_LOGI(TAG, "beacon_animation_task created with stack size: %u", stack_size);
+
+    task_created = xTaskCreate(wifi_monitor_task, "wifi_mon", 4096, NULL, 3, NULL);
+    if (task_created != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create wifi_monitor_task (ret=%d)", task_created);
+    } else {
+        ESP_LOGI(TAG, "wifi_monitor_task created with stack size: 4096");
+    }
 }
