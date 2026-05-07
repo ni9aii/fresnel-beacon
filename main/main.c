@@ -6,6 +6,7 @@
 #include "ipc.h"
 #include "config_manager.h"
 #include "wifi_manager.h"
+#include "http_server.h"
 #include "nvs_flash.h"
 
 static const char *TAG = "main";
@@ -46,6 +47,7 @@ void app_main(void)
     ESP_ERROR_CHECK(config_manager_load_from_nvs());
 
     ESP_ERROR_CHECK(wifi_manager_init());
+    ESP_ERROR_CHECK(http_server_init());
 
     led_driver_init();
 
