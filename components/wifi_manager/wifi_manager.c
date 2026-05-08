@@ -79,10 +79,26 @@ esp_err_t wifi_manager_start_ap(void)
     ESP_LOGI(TAG, "Starting AP mode");
 
     if (s_sta_netif) {
-        esp_wifi_stop();
-        esp_wifi_set_mode(WIFI_MODE_NULL);
+        esp_err_t err;
+        /* Stop WiFi first (synchronous) */
+        err = esp_wifi_stop();
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "esp_wifi_stop() failed: %s", esp_err_to_name(err));
+        }
+        /* Unregister event handlers before destroying netif to avoid use-after-free */
+        err = esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to unregister WIFI_EVENT handler: %s", esp_err_to_name(err));
+        }
+        err = esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to unregister IP_EVENT handler: %s", esp_err_to_name(err));
+        }
+        /* Detach and destroy STA netif safely */
+        esp_netif_detach(s_sta_netif);
         esp_netif_destroy(s_sta_netif);
         s_sta_netif = NULL;
+        esp_wifi_set_mode(WIFI_MODE_NULL);
     }
 
     if (s_ap_netif == NULL) {
