@@ -1,0 +1,21 @@
+idf_component_register(
+    SRCS
+        "test_ipc.c"
+        "test_config_manager.c"
+        "test_esp_led_driver.c"
+        "test_esp_wifi_manager.c"
+        "test_esp_http_server.c"
+    INCLUDE_DIRS
+        "../components/ipc/include"
+        "../components/config_manager/include"
+        "../components/led_driver/include"
+        "../components/wifi_manager/include"
+        "../components/http_server/include"
+    REQUIRES
+        unity
+        ipc
+        config_manager
+        led_driver
+        wifi_manager
+        http_server
+)
