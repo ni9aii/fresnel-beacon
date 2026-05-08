@@ -187,12 +187,6 @@ esp_err_t wifi_manager_init(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, NULL));
 
-    s_sta_netif = esp_netif_create_default_wifi_sta();
-    if (s_sta_netif == NULL) {
-        ESP_LOGE(TAG, "Failed to create STA netif");
-        return ESP_ERR_NO_MEM;
-    }
-
     runtime_config_t cfg_rt;
     esp_err_t err = config_manager_get(&cfg_rt);
     if (err != ESP_OK) {
@@ -201,14 +195,24 @@ esp_err_t wifi_manager_init(void)
         cfg_rt.wifi_pass[0] = '\0';
     }
 
-    wifi_config_t wifi_config = {0};
-    if (cfg_rt.wifi_ssid[0] != '\0') {
-        strlcpy((char *)wifi_config.sta.ssid, cfg_rt.wifi_ssid, sizeof(wifi_config.sta.ssid));
-        if (cfg_rt.wifi_pass[0] != '\0') {
-            strlcpy((char *)wifi_config.sta.password, cfg_rt.wifi_pass, sizeof(wifi_config.sta.password));
-        }
-        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    /* No credentials → skip STA entirely, go straight to AP mode */
+    if (cfg_rt.wifi_ssid[0] == '\0') {
+        ESP_LOGW(TAG, "No WiFi credentials configured, starting AP mode");
+        return wifi_manager_start_ap();
     }
+
+    s_sta_netif = esp_netif_create_default_wifi_sta();
+    if (s_sta_netif == NULL) {
+        ESP_LOGE(TAG, "Failed to create STA netif");
+        return ESP_ERR_NO_MEM;
+    }
+
+    wifi_config_t wifi_config = {0};
+    strlcpy((char *)wifi_config.sta.ssid, cfg_rt.wifi_ssid, sizeof(wifi_config.sta.ssid));
+    if (cfg_rt.wifi_pass[0] != '\0') {
+        strlcpy((char *)wifi_config.sta.password, cfg_rt.wifi_pass, sizeof(wifi_config.sta.password));
+    }
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
     err = esp_wifi_set_mode(WIFI_MODE_STA);
     if (err != ESP_OK) {
@@ -228,13 +232,7 @@ esp_err_t wifi_manager_init(void)
         return wifi_manager_start_ap();
     }
 
-    if (cfg_rt.wifi_ssid[0] == '\0') {
-        ESP_LOGW(TAG, "No WiFi credentials configured, starting AP fallback immediately");
-        wifi_manager_start_ap();
-    } else {
-        update_status(WIFI_STATUS_CONNECTING);
-    }
-
+    update_status(WIFI_STATUS_CONNECTING);
     return ESP_OK;
 }
 
