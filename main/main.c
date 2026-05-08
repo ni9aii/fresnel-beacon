@@ -2,6 +2,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_mac.h"
 #include "esp_wifi.h"
 #include "led_driver.h"
 #include "beacon_animation.h"
@@ -47,7 +48,8 @@ static void log_system_info(void)
 
     uint8_t mac[6];
     if (esp_wifi_get_mac(WIFI_IF_STA, mac) == ESP_OK) {
-        ESP_LOGI(TAG, "WiFi MAC: " MACSTR, MAC2STR(mac));
+        ESP_LOGI(TAG, "WiFi MAC: %02x:%02x:%02x:%02x:%02x:%02x",
+                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     } else {
         ESP_LOGW(TAG, "WiFi MAC unavailable");
     }
