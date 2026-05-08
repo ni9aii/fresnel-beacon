@@ -107,7 +107,10 @@ esp_err_t wifi_manager_start_ap(void)
         esp_netif_detach(s_sta_netif);
         esp_netif_destroy(s_sta_netif);
         s_sta_netif = NULL;
-        esp_wifi_set_mode(WIFI_MODE_NULL);
+        err = esp_wifi_set_mode(WIFI_MODE_NULL);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to set WiFi mode NULL: %s", esp_err_to_name(err));
+        }
     }
 
     if (s_ap_netif == NULL) {
