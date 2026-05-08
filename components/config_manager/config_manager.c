@@ -127,13 +127,22 @@ esp_err_t config_manager_set_color(uint32_t rgb)
 }
 
 /* ---------- NVS read/write ---------- */
+/* NVS API is thread-safe for internal state, but s_config struct is not */
 
 esp_err_t config_manager_load_from_nvs(void)
 {
+    if (s_config_mutex == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS open failed (%s), keeping defaults", esp_err_to_name(err));
+        xSemaphoreGive(s_config_mutex);
         return ESP_OK; /* non-fatal: fall back to defaults */
     }
 
@@ -199,6 +208,8 @@ esp_err_t config_manager_load_from_nvs(void)
 
     nvs_close(handle);
 
+    xSemaphoreGive(s_config_mutex);
+
     ESP_LOGI(TAG, "Config loaded from NVS (speed=%.1f, mode=%ld, brightness=%.2f, color=0x%06X)",
              s_config.speed_rpm, (long)s_config.mode, s_config.brightness, s_config.color_rgb);
     return ESP_OK;
@@ -206,10 +217,18 @@ esp_err_t config_manager_load_from_nvs(void)
 
 esp_err_t config_manager_save_to_nvs(void)
 {
+    if (s_config_mutex == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+
     nvs_handle_t handle;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS open (RW) failed (%s), config not saved", esp_err_to_name(err));
+        xSemaphoreGive(s_config_mutex);
         return ESP_OK; /* non-fatal */
     }
 
@@ -263,6 +282,8 @@ esp_err_t config_manager_save_to_nvs(void)
         ESP_LOGW(TAG, "NVS commit failed: %s", esp_err_to_name(err));
     }
     nvs_close(handle);
+
+    xSemaphoreGive(s_config_mutex);
 
     ESP_LOGI(TAG, "Config saved to NVS");
     return ESP_OK;
