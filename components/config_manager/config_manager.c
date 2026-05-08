@@ -1,4 +1,5 @@
 #include "config_manager.h"
+#include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "nvs_flash.h"
