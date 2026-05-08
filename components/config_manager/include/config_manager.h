@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "ipc.h"
+#include "freertos/semphr.h"
 
 /**
  * @brief Runtime configuration structure.
