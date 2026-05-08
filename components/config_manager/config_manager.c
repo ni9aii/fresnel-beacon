@@ -37,7 +37,7 @@ esp_err_t config_manager_init(void)
     s_config.wifi_pass[0]  = '\0';
 
     ESP_LOGI(TAG, "Runtime config initialised (speed=%.1f rpm, brightness=%.2f, color=0x%06X)",
-             s_config.speed_rpm, s_config.brightness, s_config.color_rgb);
+             s_config.speed_rpm, s_config.brightness, (unsigned int)s_config.color_rgb);
     return ESP_OK;
 }
 
@@ -212,7 +212,7 @@ esp_err_t config_manager_load_from_nvs(void)
     xSemaphoreGive(s_config_mutex);
 
     ESP_LOGI(TAG, "Config loaded from NVS (speed=%.1f, mode=%ld, brightness=%.2f, color=0x%06X)",
-             s_config.speed_rpm, (long)s_config.mode, s_config.brightness, s_config.color_rgb);
+             s_config.speed_rpm, (long)s_config.mode, s_config.brightness, (unsigned int)s_config.color_rgb);
     return ESP_OK;
 }
 
