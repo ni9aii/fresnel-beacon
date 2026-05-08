@@ -147,7 +147,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         ipc_cmd_t cmd = { .type = IPC_CMD_SET_SPEED, .data.speed_rpm = speed_rpm };
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (speed)");
-            httpd_resp_send_err(req, HTTPD_503_SERVICE_UNAVAILABLE, "IPC queue full");
+            httpd_resp_send_err(req, HTTPD_500, "IPC queue full");
             return ESP_FAIL;
         }
     }
@@ -156,7 +156,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         ipc_cmd_t cmd = { .type = IPC_CMD_SET_BRIGHTNESS, .data.brightness = brightness };
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (brightness)");
-            httpd_resp_send_err(req, HTTPD_503_SERVICE_UNAVAILABLE, "IPC queue full");
+            httpd_resp_send_err(req, HTTPD_500, "IPC queue full");
             return ESP_FAIL;
         }
     }
@@ -164,7 +164,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         ipc_cmd_t cmd = { .type = IPC_CMD_SET_MODE, .data.mode = mode };
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (mode)");
-            httpd_resp_send_err(req, HTTPD_503_SERVICE_UNAVAILABLE, "IPC queue full");
+            httpd_resp_send_err(req, HTTPD_500, "IPC queue full");
             return ESP_FAIL;
         }
     }
@@ -172,7 +172,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         ipc_cmd_t cmd = { .type = IPC_CMD_SET_COLOR, .data.color_rgb = (uint32_t)color };
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (color)");
-            httpd_resp_send_err(req, HTTPD_503_SERVICE_UNAVAILABLE, "IPC queue full");
+            httpd_resp_send_err(req, HTTPD_500, "IPC queue full");
             return ESP_FAIL;
         }
     }
@@ -181,14 +181,14 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
     ipc_cmd_t commit_cmd = { .type = IPC_CMD_COMMIT };
     if (xQueueSend(ipc_queue, &commit_cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "IPC queue full (commit)");
-        httpd_resp_send_err(req, HTTPD_503_SERVICE_UNAVAILABLE, "IPC queue full");
+        httpd_resp_send_err(req, HTTPD_500, "IPC queue full");
         return ESP_FAIL;
     }
 
     BaseType_t sem_ret = ipc_wait_commit(500);
     if (sem_ret != pdTRUE) {
         ESP_LOGW(TAG, "Commit timeout: animation task did not signal");
-        httpd_resp_send_err(req, HTTPD_504_GATEWAY_TIMEOUT, "commit timeout");
+        httpd_resp_send_err(req, HTTPD_500, "commit timeout");
         return ESP_FAIL;
     }
 
