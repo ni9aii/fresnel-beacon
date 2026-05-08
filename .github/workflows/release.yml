@@ -48,7 +48,29 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 
       - name: Generate credentials.h
-        run: cp main/credentials.h.example main/credentials.h
+        env:
+          WIFI_SSID: ${{ secrets.WIFI_SSID }}
+          WIFI_PASS: ${{ secrets.WIFI_PASS }}
+        run: |
+          python3 -c "
+          import pathlib, os
+          tpl = pathlib.Path('main/credentials.h.example').read_text()
+          ssid   = os.environ.get('WIFI_SSID')
+          passwd = os.environ.get('WIFI_PASS')
+          if ssid and passwd:
+              for val, name in [(ssid, 'SSID'), (passwd, 'PASS')]:
+                  if not val.strip():
+                      raise ValueError(f'{name} must not be empty')
+                  if any(c in val for c in '\"\\\n\r'):
+                      raise ValueError(f'{name} contains invalid C-string characters')
+              pathlib.Path('main/credentials.h').write_text(
+                  tpl.replace('your_network_name', ssid).replace('your_password', passwd))
+              print('Using configured WiFi credentials')
+          else:
+              # Fallback: build with example template so firmware starts in AP mode
+              pathlib.Path('main/credentials.h').write_text(tpl)
+              print('WIFI_SSID / WIFI_PASS secrets not set; firmware will start in AP mode for provisioning')
+          "
 
       - name: Cache ESP-IDF tools
         uses: actions/cache@1bd1b32ce435978fbf4a2e56d26d9f96b5807ac4  # v4.2.0
