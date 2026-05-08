@@ -181,9 +181,23 @@ esp_err_t wifi_manager_init(void)
         wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     }
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    err = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "esp_wifi_set_mode(STA) failed: %s", esp_err_to_name(err));
+        return wifi_manager_start_ap();
+    }
+
+    err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "esp_wifi_set_config(STA) failed: %s", esp_err_to_name(err));
+        return wifi_manager_start_ap();
+    }
+
+    err = esp_wifi_start();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "esp_wifi_start() failed: %s", esp_err_to_name(err));
+        return wifi_manager_start_ap();
+    }
 
     if (cfg_rt.wifi_ssid[0] == '\0') {
         ESP_LOGW(TAG, "No WiFi credentials configured, starting AP fallback immediately");
