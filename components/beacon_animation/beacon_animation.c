@@ -26,6 +26,7 @@ static inline rgb_t unpack_rgb(uint32_t rgb)
 static void process_ipc_commands(void)
 {
     ipc_cmd_t cmd;
+    bool commit_pending = false;
     while (xQueueReceive(ipc_queue, &cmd, 0) == pdTRUE) {
         switch (cmd.type) {
             case IPC_CMD_SET_SPEED:
@@ -40,9 +41,15 @@ static void process_ipc_commands(void)
             case IPC_CMD_SET_BRIGHTNESS:
                 config_manager_set_brightness(cmd.data.brightness);
                 break;
+            case IPC_CMD_COMMIT:
+                commit_pending = true;
+                break;
             default:
                 break;
         }
+    }
+    if (commit_pending) {
+        ipc_signal_commit();
     }
 }
 
