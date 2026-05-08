@@ -398,9 +398,18 @@ esp_err_t http_server_init(void)
         return err;
     }
 
-    httpd_register_uri_handler(s_server, &uri_root);
-    httpd_register_uri_handler(s_server, &uri_status);
-    httpd_register_uri_handler(s_server, &uri_config);
+    err = httpd_register_uri_handler(s_server, &uri_root);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to register root handler: %s", esp_err_to_name(err));
+    }
+    err = httpd_register_uri_handler(s_server, &uri_status);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to register status handler: %s", esp_err_to_name(err));
+    }
+    err = httpd_register_uri_handler(s_server, &uri_config);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to register config handler: %s", esp_err_to_name(err));
+    }
 
     ESP_LOGI(TAG, "HTTP server started");
     return ESP_OK;
@@ -409,7 +418,10 @@ esp_err_t http_server_init(void)
 void http_server_stop(void)
 {
     if (s_server != NULL) {
-        httpd_stop(s_server);
+        esp_err_t err = httpd_stop(s_server);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "httpd_stop failed: %s", esp_err_to_name(err));
+        }
         s_server = NULL;
         ESP_LOGI(TAG, "HTTP server stopped");
     }
