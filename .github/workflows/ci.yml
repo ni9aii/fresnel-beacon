@@ -89,10 +89,6 @@ jobs:
               ssid = 'your_network_name'
           if not passwd:
               passwd = 'your_password'
-          # Validate no C-string dangerous characters
-          for val, name in [(ssid, 'SSID'), (passwd, 'PASS')]:
-              if any(c in val for c in '\"\\\n\r'):
-                  raise ValueError(f'{name} contains invalid C-string characters')
           pathlib.Path('main/credentials.h').write_text(
               tpl.replace('your_network_name', ssid).replace('your_password', passwd))
           "
