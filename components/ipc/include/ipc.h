@@ -13,6 +13,7 @@ typedef enum {
     IPC_CMD_SET_COLOR,
     IPC_CMD_SET_MODE,
     IPC_CMD_SET_BRIGHTNESS,
+    IPC_CMD_COMMIT,
 } ipc_cmd_type_t;
 
 /**
@@ -35,8 +36,27 @@ typedef struct {
 extern QueueHandle_t ipc_queue;
 
 /**
- * @brief Initialise IPC queue.
+ * @brief Binary semaphore used to signal that IPC_CMD_COMMIT has been
+ *        processed by the animation task.
+ */
+extern SemaphoreHandle_t ipc_commit_sem;
+
+/**
+ * @brief Initialise IPC queue and commit semaphore.
  *
  * @return ESP_OK on success, ESP_ERR_NO_MEM if allocation fails.
  */
 esp_err_t ipc_init(void);
+
+/**
+ * @brief Wait for the animation task to signal that IPC_CMD_COMMIT was processed.
+ *
+ * @param timeout_ms Timeout in milliseconds.
+ * @return pdTRUE if signaled, pdFALSE on timeout.
+ */
+BaseType_t ipc_wait_commit(uint32_t timeout_ms);
+
+/**
+ * @brief Signal that IPC_CMD_COMMIT has been processed.
+ */
+void ipc_signal_commit(void);
