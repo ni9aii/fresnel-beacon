@@ -82,13 +82,16 @@ jobs:
           python3 -c "
           import pathlib, os
           tpl = pathlib.Path('main/credentials.h.example').read_text()
-          ssid   = os.environ.get('WIFI_SSID') or 'your_network_name'
-          passwd = os.environ.get('WIFI_PASS') or 'your_password'
-          # Validate no C-string dangerous characters and non-empty
+          ssid   = os.environ.get('WIFI_SSID', '').strip()
+          passwd = os.environ.get('WIFI_PASS', '').strip()
+          # If no secrets provided, use dummy values (device will start in AP mode)
+          if not ssid:
+              ssid = 'your_network_name'
+          if not passwd:
+              passwd = 'your_password'
+          # Validate no C-string dangerous characters
           for val, name in [(ssid, 'SSID'), (passwd, 'PASS')]:
-              if not val.strip():
-                  raise ValueError(f'{name} must not be empty')
-              if any(c in val for c in '"\\\n\r'):
+              if any(c in val for c in '\"\\\n\r'):
                   raise ValueError(f'{name} contains invalid C-string characters')
           pathlib.Path('main/credentials.h').write_text(
               tpl.replace('your_network_name', ssid).replace('your_password', passwd))
