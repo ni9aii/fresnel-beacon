@@ -95,13 +95,13 @@ jobs:
           "
 
       - name: Cache ESP-IDF tools
-        uses: actions/cache@1bd1b32ce435978fbf4a2e56d26d9f96b5807ac4  # v4.2.0
+        uses: actions/cache@v4.2.0
         with:
           path: ~/.espressif
           key: esp-idf-v5.3.2-${{ runner.os }}
 
       - name: Build with ESP-IDF
-        uses: espressif/esp-idf-ci-action@8cd22ae10c229488e7ab129c8bcdc0aedd8a7e20  # v1.1.0
+        uses: espressif/esp-idf-ci-action@v1.1.0
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
