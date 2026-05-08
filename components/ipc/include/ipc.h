@@ -35,13 +35,7 @@ typedef struct {
 extern QueueHandle_t ipc_queue;
 
 /**
- * @brief Global mutex protecting led_driver state.
- *        Created by ipc_init().
- */
-extern SemaphoreHandle_t led_mutex;
-
-/**
- * @brief Initialise IPC queue and mutex.
+ * @brief Initialise IPC queue.
  *
  * @return ESP_OK on success, ESP_ERR_NO_MEM if allocation fails.
  */

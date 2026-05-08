@@ -1,5 +1,4 @@
 #include "led_driver.h"
-#include "ipc.h"
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "driver/rmt_tx.h"
@@ -28,6 +27,21 @@ static rmt_encoder_handle_t s_led_encoder;
 // GRB byte order as required by WS2812B
 static uint8_t s_pixels[LED_MATRIX_LEN * 3];
 
+SemaphoreHandle_t led_mutex = NULL;
+
+static esp_err_t led_mutex_init(void)
+{
+    if (led_mutex == NULL) {
+        led_mutex = xSemaphoreCreateMutex();
+        if (led_mutex == NULL) {
+            ESP_LOGE(TAG, "Failed to create LED mutex");
+            return ESP_ERR_NO_MEM;
+        }
+        ESP_LOGI(TAG, "LED mutex created");
+    }
+    return ESP_OK;
+}
+
 void led_driver_init(void)
 {
     ESP_LOGI(TAG, "init RMT on GPIO %d, %d LEDs", LED_MATRIX_GPIO, LED_MATRIX_LEN);
@@ -42,6 +56,8 @@ void led_driver_init(void)
     ESP_ERROR_CHECK(rmt_new_tx_channel(&chan_cfg, &s_led_chan));
     ESP_ERROR_CHECK(rmt_new_bytes_encoder(&s_encoder_cfg, &s_led_encoder));
     ESP_ERROR_CHECK(rmt_enable(s_led_chan));
+
+    ESP_ERROR_CHECK(led_mutex_init());
 
     led_driver_clear();
     ESP_ERROR_CHECK(led_driver_flush());
