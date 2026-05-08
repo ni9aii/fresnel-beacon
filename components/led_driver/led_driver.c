@@ -25,7 +25,9 @@ static rmt_channel_handle_t s_led_chan;
 static rmt_encoder_handle_t s_led_encoder;
 
 // GRB byte order as required by WS2812B
-static uint8_t s_pixels[LED_MATRIX_LEN * 3];
+// Double-buffer: front buffer written by set_pixel/clear, back buffer handed to RMT
+static uint8_t s_pixels_front[LED_MATRIX_LEN * 3];
+static uint8_t s_pixels_back[LED_MATRIX_LEN * 3];
 
 SemaphoreHandle_t led_mutex = NULL;
 
@@ -59,7 +61,8 @@ void led_driver_init(void)
 
     ESP_ERROR_CHECK(led_mutex_init());
 
-    led_driver_clear();
+    memset(s_pixels_front, 0, sizeof(s_pixels_front));
+    memset(s_pixels_back,  0, sizeof(s_pixels_back));
     ESP_ERROR_CHECK(led_driver_flush());
 }
 
@@ -77,9 +80,9 @@ esp_err_t led_driver_set_pixel(uint8_t index, rgb_t color)
     }
 
     // WS2812B expects GRB, not RGB
-    s_pixels[index * 3 + 0] = color.g;
-    s_pixels[index * 3 + 1] = color.r;
-    s_pixels[index * 3 + 2] = color.b;
+    s_pixels_front[index * 3 + 0] = color.g;
+    s_pixels_front[index * 3 + 1] = color.r;
+    s_pixels_front[index * 3 + 2] = color.b;
 
     if (led_mutex != NULL) {
         xSemaphoreGive(led_mutex);
@@ -96,7 +99,7 @@ void led_driver_clear(void)
         }
     }
 
-    memset(s_pixels, 0, sizeof(s_pixels));
+    memset(s_pixels_front, 0, sizeof(s_pixels_front));
 
     if (led_mutex != NULL) {
         xSemaphoreGive(led_mutex);
@@ -122,11 +125,15 @@ esp_err_t led_driver_flush(void)
         return ret;
     }
 
-    rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
-    ret = rmt_transmit(s_led_chan, s_led_encoder, s_pixels, sizeof(s_pixels), &tx_cfg);
+    // Copy front buffer to back buffer under mutex, then release
+    memcpy(s_pixels_back, s_pixels_front, sizeof(s_pixels_front));
 
     if (led_mutex != NULL) {
         xSemaphoreGive(led_mutex);
     }
+
+    // Hand the stable back buffer to RMT (non-blocking DMA read)
+    rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
+    ret = rmt_transmit(s_led_chan, s_led_encoder, s_pixels_back, sizeof(s_pixels_back), &tx_cfg);
     return ret;
 }
