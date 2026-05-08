@@ -10,12 +10,12 @@ SemaphoreHandle_t ipc_commit_sem = NULL;
 esp_err_t ipc_init(void)
 {
     if (ipc_queue == NULL) {
-        ipc_queue = xQueueCreate(10, sizeof(ipc_cmd_t));
+        ipc_queue = xQueueCreate(32, sizeof(ipc_cmd_t));
         if (ipc_queue == NULL) {
             ESP_LOGE(TAG, "Failed to create IPC queue");
             return ESP_ERR_NO_MEM;
         }
-        ESP_LOGI(TAG, "IPC queue created (size 10)");
+        ESP_LOGI(TAG, "IPC queue created (size 32)");
     }
 
     if (ipc_commit_sem == NULL) {

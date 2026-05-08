@@ -31,7 +31,7 @@ typedef struct {
 
 /**
  * @brief Global FreeRTOS queue handle for IPC commands.
- *        Created by ipc_init(), size = 10.
+ *        Created by ipc_init(), size = 32.
  */
 extern QueueHandle_t ipc_queue;
 
