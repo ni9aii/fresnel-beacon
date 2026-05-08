@@ -50,7 +50,10 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG, "STA started, connecting...");
         update_status(WIFI_STATUS_CONNECTING);
-        esp_wifi_connect();
+        esp_err_t err = esp_wifi_connect();
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "esp_wifi_connect() failed: %s", esp_err_to_name(err));
+        }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
         ESP_LOGW(TAG, "STA disconnected, reason=%d", disconn->reason);
@@ -58,7 +61,10 @@ static void event_handler(void *arg, esp_event_base_t event_base,
             s_retry_count++;
             ESP_LOGI(TAG, "Retry %d/%d", s_retry_count, MAX_RETRIES);
             update_status(WIFI_STATUS_CONNECTING);
-            esp_wifi_connect();
+            esp_err_t err = esp_wifi_connect();
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "esp_wifi_connect() failed: %s", esp_err_to_name(err));
+        }
         } else {
             ESP_LOGW(TAG, "Max retries reached, falling back to AP mode");
             update_status(WIFI_STATUS_DISCONNECTED);
