@@ -89,13 +89,18 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         return ESP_ERR_NO_MEM;
     }
 
-    int ret = httpd_req_recv(req, buf, req->content_len);
-    if (ret <= 0) {
-        free(buf);
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "receive error");
-        return ESP_FAIL;
+    /* Loop recv until full body received (handles partial reads) */
+    size_t received = 0;
+    while (received < req->content_len) {
+        int ret = httpd_req_recv(req, buf + received, req->content_len - received);
+        if (ret <= 0) {
+            free(buf);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "receive error");
+            return ESP_FAIL;
+        }
+        received += ret;
     }
-    buf[ret] = '\0';
+    buf[received] = '\0';
 
     /* Simple JSON parser: scan for known keys using sscanf */
     float speed_rpm = -1.0f;
@@ -162,7 +167,20 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         }
     }
 
-    /* Save to NVS */
+    /* Send IPC_CMD_COMMIT and wait for animation task to process it */
+    ipc_cmd_t commit_cmd = { .type = IPC_CMD_COMMIT };
+    if (xQueueSend(ipc_queue, &commit_cmd, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "IPC queue full (commit)");
+    }
+
+    BaseType_t sem_ret = ipc_wait_commit(500);
+    if (sem_ret != pdTRUE) {
+        ESP_LOGW(TAG, "Commit timeout: animation task did not signal");
+        httpd_resp_send_err(req, HTTPD_504_GATEWAY_TIMEOUT, "commit timeout");
+        return ESP_FAIL;
+    }
+
+    /* Save to NVS after commit acknowledged */
     esp_err_t err = config_manager_save_to_nvs();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS save failed: %s", esp_err_to_name(err));
