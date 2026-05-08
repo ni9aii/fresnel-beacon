@@ -16,8 +16,14 @@ static const int MAX_RETRIES = 5;
 static esp_netif_t *s_sta_netif = NULL;
 static esp_netif_t *s_ap_netif = NULL;
 
+static SemaphoreHandle_t s_wifi_status_mutex = NULL;
+
 static void update_status(wifi_manager_status_t status)
 {
+    if (s_wifi_status_mutex == NULL) {
+        return;
+    }
+    xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
     if (s_status != status) {
         s_status = status;
         switch (status) {
@@ -35,6 +41,7 @@ static void update_status(wifi_manager_status_t status)
             break;
         }
     }
+    xSemaphoreGive(s_wifi_status_mutex);
 }
 
 static void event_handler(void *arg, esp_event_base_t event_base,
@@ -59,7 +66,9 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
         snprintf(s_ip_str, sizeof(s_ip_str), IPSTR, IP2STR(&event->ip_info.ip));
+        xSemaphoreGive(s_wifi_status_mutex);
         ESP_LOGI(TAG, "Got IP: %s", s_ip_str);
         s_retry_count = 0;
         update_status(WIFI_STATUS_CONNECTED);
@@ -147,6 +156,14 @@ esp_err_t wifi_manager_init(void)
 {
     ESP_LOGI(TAG, "Initialising WiFi manager");
 
+    if (s_wifi_status_mutex == NULL) {
+        s_wifi_status_mutex = xSemaphoreCreateMutex();
+        if (s_wifi_status_mutex == NULL) {
+            ESP_LOGE(TAG, "Failed to create wifi status mutex");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
@@ -211,10 +228,23 @@ esp_err_t wifi_manager_init(void)
 
 wifi_manager_status_t wifi_manager_get_status(void)
 {
-    return s_status;
+    wifi_manager_status_t status = WIFI_STATUS_DISCONNECTED;
+    if (s_wifi_status_mutex != NULL) {
+        xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
+        status = s_status;
+        xSemaphoreGive(s_wifi_status_mutex);
+    }
+    return status;
 }
+
+static char s_ip_str_local[16] = "0.0.0.0";
 
 const char *wifi_manager_get_ip(void)
 {
-    return s_ip_str;
+    if (s_wifi_status_mutex != NULL) {
+        xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
+        strlcpy(s_ip_str_local, s_ip_str, sizeof(s_ip_str_local));
+        xSemaphoreGive(s_wifi_status_mutex);
+    }
+    return s_ip_str_local;
 }
