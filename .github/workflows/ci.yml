@@ -64,6 +64,7 @@ jobs:
 
   build-and-simulate:
     name: Build and simulate
+    needs: [test, analyze]
     runs-on: ubuntu-24.04
     env:
       WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
