@@ -80,12 +80,14 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         update_status(WIFI_STATUS_CONNECTED);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t *conn = (wifi_event_ap_staconnected_t *)event_data;
-        ESP_LOGI(TAG, "AP: station " MACSTR " joined, AID=%d",
-                 MAC2STR(conn->mac), conn->aid);
+        ESP_LOGI(TAG, "AP: station %02x:%02x:%02x:%02x:%02x:%02x joined, AID=%d",
+                 conn->mac[0], conn->mac[1], conn->mac[2],
+                 conn->mac[3], conn->mac[4], conn->mac[5], conn->aid);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED) {
         wifi_event_ap_stadisconnected_t *disconn = (wifi_event_ap_stadisconnected_t *)event_data;
-        ESP_LOGI(TAG, "AP: station " MACSTR " left, AID=%d",
-                 MAC2STR(disconn->mac), disconn->aid);
+        ESP_LOGI(TAG, "AP: station %02x:%02x:%02x:%02x:%02x:%02x left, AID=%d",
+                 disconn->mac[0], disconn->mac[1], disconn->mac[2],
+                 disconn->mac[3], disconn->mac[4], disconn->mac[5], disconn->aid);
     }
 }
 

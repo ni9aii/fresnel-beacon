@@ -115,7 +115,9 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         sscanf(strstr(buf, "\"brightness\""), "\"brightness\":%f", &brightness);
     }
     if (strstr(buf, "\"mode\"")) {
-        sscanf(strstr(buf, "\"mode\""), "\"mode\":%ld", &mode);
+        long mode_l = 0;
+        sscanf(strstr(buf, "\"mode\""), "\"mode\":%ld", &mode_l);
+        mode = (int)mode_l;
     }
     if (strstr(buf, "\"color\"")) {
         char *color_ptr = strstr(buf, "\"color\"");
