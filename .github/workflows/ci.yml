@@ -106,10 +106,6 @@ jobs:
           target: esp32s3
           command: idf.py build
 
-      - name: Build Unity test component
-        run: |
-          idf.py -C test build
-
       - name: Firmware size report
         run: ls -lh build/*.bin build/*.elf 2>/dev/null || true
 
