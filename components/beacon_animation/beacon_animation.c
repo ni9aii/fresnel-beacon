@@ -136,4 +136,9 @@ void beacon_animation_task(void *arg)
 
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(FRAME_MS));
     }
+
+    // Task exit cleanup (should never reach here in normal operation)
+    ESP_ERROR_CHECK(esp_task_wdt_delete(NULL));
+    ESP_LOGI(TAG, "Task watchdog unregistered");
+    vTaskDelete(NULL);
 }
