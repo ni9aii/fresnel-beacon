@@ -135,5 +135,26 @@ esp_err_t led_driver_flush(void)
     // Hand the stable back buffer to RMT (non-blocking DMA read)
     rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
     ret = rmt_transmit(s_led_chan, s_led_encoder, s_pixels_back, sizeof(s_pixels_back), &tx_cfg);
-    return ret;
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "rmt_transmit failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // WS2812B reset: >50 us LOW between frames
+    ets_delay_us(60);
+    return ESP_OK;
+}
+
+void led_driver_deinit(void)
+{
+    if (s_led_encoder != NULL) {
+        ESP_ERROR_CHECK(rmt_del_encoder(s_led_encoder));
+        s_led_encoder = NULL;
+    }
+    if (s_led_chan != NULL) {
+        ESP_ERROR_CHECK(rmt_disable(s_led_chan));
+        ESP_ERROR_CHECK(rmt_del_channel(s_led_chan));
+        s_led_chan = NULL;
+    }
+    led_driver_clear();
 }
