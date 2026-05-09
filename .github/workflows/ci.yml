@@ -74,23 +74,14 @@ jobs:
       - name: Display scenario file
         run: cat scenario.yaml
 
-      - name: Generate credentials.h
-        env:
-          WIFI_SSID: ${{ secrets.WIFI_SSID }}
-          WIFI_PASS: ${{ secrets.WIFI_PASS }}
+      - name: Generate credentials.h (dummy values for CI)
         run: |
           python3 -c "
-          import pathlib, os
+          import pathlib
           tpl = pathlib.Path('main/credentials.h.example').read_text()
-          ssid   = os.environ.get('WIFI_SSID', '').strip()
-          passwd = os.environ.get('WIFI_PASS', '').strip()
-          # If no secrets provided, use dummy values (device will start in AP mode)
-          if not ssid:
-              ssid = 'your_network_name'
-          if not passwd:
-              passwd = 'your_password'
           pathlib.Path('main/credentials.h').write_text(
-              tpl.replace('your_network_name', ssid).replace('your_password', passwd))
+              tpl.replace('your_network_name', 'ci_test_network')
+                   .replace('your_password', 'ci_test_password'))
           "
 
       - name: Cache ESP-IDF tools
