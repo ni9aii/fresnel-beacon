@@ -4,6 +4,7 @@
 #include "driver/rmt_tx.h"
 #include "driver/rmt_encoder.h"
 #include "esp_log.h"
+#include "esp_rom/esp_rom.h"
 
 static const char *TAG = "led_driver";
 
@@ -141,7 +142,7 @@ esp_err_t led_driver_flush(void)
     }
 
     // WS2812B reset: >50 us LOW between frames
-    ets_delay_us(60);
+    esp_rom_delay_us(60);
     return ESP_OK;
 }
 

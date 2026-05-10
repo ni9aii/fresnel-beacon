@@ -11,3 +11,5 @@ graphify-out/
 compile_commands.json
 .zed/
 .fresh-project.json
+.claude/
+CLAUDE.md
