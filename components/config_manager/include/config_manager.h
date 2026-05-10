@@ -11,20 +11,20 @@ extern "C" {
 /**
  * @brief Default runtime configuration values.
  */
-#define CONFIG_MANAGER_DEFAULTS() \
-    (runtime_config_t) { .speed_rpm = 8.0f, .mode = 0, .brightness = 1.0f, .color_rgb = 0xFFA028 }
+#define CONFIG_MANAGER_DEFAULTS()                                                                  \
+    (runtime_config_t){.speed_rpm = 8.0f, .mode = 0, .brightness = 1.0f, .color_rgb = 0xFFA028}
 
 /**
  * @brief Runtime configuration structure.
  */
 typedef struct {
-    float    speed_rpm;   // beacon rotation speed (RPM)
-    int32_t  mode;        // animation mode identifier
-    float    brightness;  // global brightness factor 0.0..1.0
-    uint32_t color_rgb;   // beam color as 0xRRGGBB
+    float speed_rpm;    // beacon rotation speed (RPM)
+    int32_t mode;       // animation mode identifier
+    float brightness;   // global brightness factor 0.0..1.0
+    uint32_t color_rgb; // beam color as 0xRRGGBB
     /* Wi-Fi credentials stored in NVS but NOT exposed via IPC (security) */
-    char     wifi_ssid[32];
-    char     wifi_pass[64];
+    char wifi_ssid[32];
+    char wifi_pass[64];
 } runtime_config_t;
 
 /**

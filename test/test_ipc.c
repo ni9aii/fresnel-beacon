@@ -1,8 +1,7 @@
 #include "unity.h"
 #include "ipc.h"
 
-TEST_CASE("ipc_init creates queue and semaphore", "[ipc]")
-{
+TEST_CASE("ipc_init creates queue and semaphore", "[ipc]") {
     /* Reset static handles so we can test init on a clean slate */
     extern QueueHandle_t ipc_queue;
     extern SemaphoreHandle_t ipc_commit_sem;
@@ -15,14 +14,12 @@ TEST_CASE("ipc_init creates queue and semaphore", "[ipc]")
     TEST_ASSERT_NOT_NULL(ipc_commit_sem);
 }
 
-TEST_CASE("ipc_cmd_t size is 8 bytes", "[ipc]")
-{
+TEST_CASE("ipc_cmd_t size is 8 bytes", "[ipc]") {
     /* Compile-time sanity check for IPC struct layout */
     TEST_ASSERT_EQUAL(8, sizeof(ipc_cmd_t));
 }
 
-TEST_CASE("ipc_cmd_t union stores speed_rpm correctly", "[ipc]")
-{
+TEST_CASE("ipc_cmd_t union stores speed_rpm correctly", "[ipc]") {
     ipc_cmd_t cmd;
     cmd.type = IPC_CMD_SET_SPEED;
     cmd.data.speed_rpm = 42.0f;
@@ -30,8 +27,7 @@ TEST_CASE("ipc_cmd_t union stores speed_rpm correctly", "[ipc]")
     TEST_ASSERT_EQUAL_FLOAT(42.0f, cmd.data.speed_rpm);
 }
 
-TEST_CASE("ipc_cmd_t union stores color_rgb correctly", "[ipc]")
-{
+TEST_CASE("ipc_cmd_t union stores color_rgb correctly", "[ipc]") {
     ipc_cmd_t cmd;
     cmd.type = IPC_CMD_SET_COLOR;
     cmd.data.color_rgb = 0xFFA028;

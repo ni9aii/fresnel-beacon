@@ -1,8 +1,7 @@
 #include "unity.h"
 #include "config_manager.h"
 
-TEST_CASE("config_manager_init sets defaults", "[config_manager]")
-{
+TEST_CASE("config_manager_init sets defaults", "[config_manager]") {
     esp_err_t err = config_manager_init();
     TEST_ASSERT_EQUAL(ESP_OK, err);
 
@@ -18,17 +17,16 @@ TEST_CASE("config_manager_init sets defaults", "[config_manager]")
     TEST_ASSERT_EQUAL('\0', cfg.wifi_pass[0]);
 }
 
-TEST_CASE("config_manager_set and get roundtrip", "[config_manager]")
-{
+TEST_CASE("config_manager_set and get roundtrip", "[config_manager]") {
     config_manager_init();
 
     runtime_config_t in = {
-        .speed_rpm  = 15.5f,
-        .mode       = 2,
+        .speed_rpm = 15.5f,
+        .mode = 2,
         .brightness = 0.75f,
-        .color_rgb  = 0x00FF00,
-        .wifi_ssid  = "test_ssid",
-        .wifi_pass  = "test_pass",
+        .color_rgb = 0x00FF00,
+        .wifi_ssid = "test_ssid",
+        .wifi_pass = "test_pass",
     };
 
     esp_err_t err = config_manager_set(&in);
@@ -46,8 +44,7 @@ TEST_CASE("config_manager_set and get roundtrip", "[config_manager]")
     TEST_ASSERT_EQUAL_STRING(in.wifi_pass, out.wifi_pass);
 }
 
-TEST_CASE("config_manager individual setters work", "[config_manager]")
-{
+TEST_CASE("config_manager individual setters work", "[config_manager]") {
     config_manager_init();
 
     TEST_ASSERT_EQUAL(ESP_OK, config_manager_set_speed(12.0f));

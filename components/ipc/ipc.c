@@ -7,8 +7,7 @@ static const char *TAG = "ipc";
 QueueHandle_t ipc_queue = NULL;
 SemaphoreHandle_t ipc_commit_sem = NULL;
 
-esp_err_t ipc_init(void)
-{
+esp_err_t ipc_init(void) {
     if (ipc_queue == NULL) {
         ipc_queue = xQueueCreate(32, sizeof(ipc_cmd_t));
         if (ipc_queue == NULL) {
@@ -38,16 +37,14 @@ esp_err_t ipc_init(void)
  *                   Use portMAX_DELAY for infinite wait.
  * @return pdTRUE if the semaphore was taken, pdFALSE on timeout or if not initialised.
  */
-BaseType_t ipc_wait_commit(uint32_t timeout_ms)
-{
+BaseType_t ipc_wait_commit(uint32_t timeout_ms) {
     if (ipc_commit_sem == NULL) {
         return pdFALSE;
     }
     return xSemaphoreTake(ipc_commit_sem, pdMS_TO_TICKS(timeout_ms));
 }
 
-void ipc_signal_commit(void)
-{
+void ipc_signal_commit(void) {
     if (ipc_commit_sem != NULL) {
         xSemaphoreGive(ipc_commit_sem);
     }

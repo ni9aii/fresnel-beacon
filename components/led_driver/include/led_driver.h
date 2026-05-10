@@ -22,11 +22,11 @@ extern SemaphoreHandle_t led_mutex;
  * @note Thread-safe when led_driver_init() has been called (uses led_mutex).
  */
 
-void      led_driver_init(void);
-void      led_driver_deinit(void);
+void led_driver_init(void);
+void led_driver_deinit(void);
 esp_err_t led_driver_set_pixel(uint8_t index, rgb_t color);
 esp_err_t led_driver_flush(void);
-void      led_driver_clear(void);
+void led_driver_clear(void);
 
 #ifdef __cplusplus
 }

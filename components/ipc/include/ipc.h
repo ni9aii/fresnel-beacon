@@ -26,10 +26,10 @@ typedef enum {
 typedef struct {
     ipc_cmd_type_t type;
     union {
-        float    speed_rpm;
-        uint32_t color_rgb;   // 0xRRGGBB
-        int32_t  mode;
-        float    brightness;  // 0.0 .. 1.0
+        float speed_rpm;
+        uint32_t color_rgb; // 0xRRGGBB
+        int32_t mode;
+        float brightness; // 0.0 .. 1.0
     } data;
 } ipc_cmd_t;
 

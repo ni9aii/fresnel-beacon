@@ -20,8 +20,7 @@ static esp_netif_t *s_ap_netif = NULL;
 
 static SemaphoreHandle_t s_wifi_status_mutex = NULL;
 
-static void update_status(wifi_manager_status_t status)
-{
+static void update_status(wifi_manager_status_t status) {
     if (s_wifi_status_mutex == NULL) {
         return;
     }
@@ -46,9 +45,8 @@ static void update_status(wifi_manager_status_t status)
     xSemaphoreGive(s_wifi_status_mutex);
 }
 
-static void event_handler(void *arg, esp_event_base_t event_base,
-                          int32_t event_id, void *event_data)
-{
+static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                          void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG, "STA started, connecting...");
         update_status(WIFI_STATUS_CONNECTING);
@@ -57,7 +55,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
             ESP_LOGW(TAG, "esp_wifi_connect() failed: %s", esp_err_to_name(err));
         }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
+        wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *) event_data;
         ESP_LOGW(TAG, "STA disconnected, reason=%d", disconn->reason);
         if (s_retry_count < MAX_RETRIES) {
             s_retry_count++;
@@ -73,7 +71,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
             wifi_manager_start_ap();
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
         xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
         snprintf(s_ip_str, sizeof(s_ip_str), IPSTR, IP2STR(&event->ip_info.ip));
         xSemaphoreGive(s_wifi_status_mutex);
@@ -81,20 +79,18 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         s_retry_count = 0;
         update_status(WIFI_STATUS_CONNECTED);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
-        wifi_event_ap_staconnected_t *conn = (wifi_event_ap_staconnected_t *)event_data;
-        ESP_LOGI(TAG, "AP: station %02x:%02x:%02x:%02x:%02x:%02x joined, AID=%d",
-                 conn->mac[0], conn->mac[1], conn->mac[2],
-                 conn->mac[3], conn->mac[4], conn->mac[5], conn->aid);
+        wifi_event_ap_staconnected_t *conn = (wifi_event_ap_staconnected_t *) event_data;
+        ESP_LOGI(TAG, "AP: station %02x:%02x:%02x:%02x:%02x:%02x joined, AID=%d", conn->mac[0],
+                 conn->mac[1], conn->mac[2], conn->mac[3], conn->mac[4], conn->mac[5], conn->aid);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED) {
-        wifi_event_ap_stadisconnected_t *disconn = (wifi_event_ap_stadisconnected_t *)event_data;
-        ESP_LOGI(TAG, "AP: station %02x:%02x:%02x:%02x:%02x:%02x left, AID=%d",
-                 disconn->mac[0], disconn->mac[1], disconn->mac[2],
-                 disconn->mac[3], disconn->mac[4], disconn->mac[5], disconn->aid);
+        wifi_event_ap_stadisconnected_t *disconn = (wifi_event_ap_stadisconnected_t *) event_data;
+        ESP_LOGI(TAG, "AP: station %02x:%02x:%02x:%02x:%02x:%02x left, AID=%d", disconn->mac[0],
+                 disconn->mac[1], disconn->mac[2], disconn->mac[3], disconn->mac[4],
+                 disconn->mac[5], disconn->aid);
     }
 }
 
-esp_err_t wifi_manager_start_ap(void)
-{
+esp_err_t wifi_manager_start_ap(void) {
     ESP_LOGI(TAG, "Starting AP mode");
 
     if (s_sta_netif) {
@@ -134,15 +130,15 @@ esp_err_t wifi_manager_start_ap(void)
         return err;
     }
 
-    snprintf((char *)wifi_config.ap.ssid, sizeof(wifi_config.ap.ssid),
-             "Fresnel-Beacon-%02X%02X", mac[4], mac[5]);
-    wifi_config.ap.ssid_len = strlen((char *)wifi_config.ap.ssid);
+    snprintf((char *) wifi_config.ap.ssid, sizeof(wifi_config.ap.ssid), "Fresnel-Beacon-%02X%02X",
+             mac[4], mac[5]);
+    wifi_config.ap.ssid_len = strlen((char *) wifi_config.ap.ssid);
     wifi_config.ap.channel = 1;
     wifi_config.ap.max_connection = 4;
     wifi_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
     /* Generate password from MAC: FB + last 4 hex digits of MAC */
-    snprintf((char *)wifi_config.ap.password, sizeof(wifi_config.ap.password),
-             "FB%02X%02X", mac[4], mac[5]);
+    snprintf((char *) wifi_config.ap.password, sizeof(wifi_config.ap.password), "FB%02X%02X",
+             mac[4], mac[5]);
 
     err = esp_wifi_set_mode(WIFI_MODE_AP);
     if (err != ESP_OK) {
@@ -167,8 +163,7 @@ esp_err_t wifi_manager_start_ap(void)
     return ESP_OK;
 }
 
-esp_err_t wifi_manager_init(void)
-{
+esp_err_t wifi_manager_init(void) {
     ESP_LOGI(TAG, "Initialising WiFi manager");
 
     if (s_wifi_status_mutex == NULL) {
@@ -185,10 +180,9 @@ esp_err_t wifi_manager_init(void)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    ESP_ERROR_CHECK(esp_event_handler_register(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(
-        IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
+    ESP_ERROR_CHECK(
+        esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
 
     runtime_config_t cfg_rt;
     esp_err_t err = config_manager_get(&cfg_rt);
@@ -211,9 +205,10 @@ esp_err_t wifi_manager_init(void)
     }
 
     wifi_config_t wifi_config = {0};
-    strlcpy((char *)wifi_config.sta.ssid, cfg_rt.wifi_ssid, sizeof(wifi_config.sta.ssid));
+    strlcpy((char *) wifi_config.sta.ssid, cfg_rt.wifi_ssid, sizeof(wifi_config.sta.ssid));
     if (cfg_rt.wifi_pass[0] != '\0') {
-        strlcpy((char *)wifi_config.sta.password, cfg_rt.wifi_pass, sizeof(wifi_config.sta.password));
+        strlcpy((char *) wifi_config.sta.password, cfg_rt.wifi_pass,
+                sizeof(wifi_config.sta.password));
     }
     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
@@ -239,8 +234,7 @@ esp_err_t wifi_manager_init(void)
     return ESP_OK;
 }
 
-wifi_manager_status_t wifi_manager_get_status(void)
-{
+wifi_manager_status_t wifi_manager_get_status(void) {
     wifi_manager_status_t status = WIFI_STATUS_DISCONNECTED;
     if (s_wifi_status_mutex != NULL) {
         xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
@@ -252,8 +246,7 @@ wifi_manager_status_t wifi_manager_get_status(void)
 
 static char s_ip_str_local[16] = "0.0.0.0";
 
-const char *wifi_manager_get_ip(void)
-{
+const char *wifi_manager_get_ip(void) {
     if (s_wifi_status_mutex != NULL) {
         xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
         strlcpy(s_ip_str_local, s_ip_str, sizeof(s_ip_str_local));

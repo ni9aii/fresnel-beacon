@@ -12,15 +12,14 @@ static runtime_config_t s_config;
 static SemaphoreHandle_t s_config_mutex = NULL;
 
 /* Defaults */
-#define DEFAULT_SPEED_RPM    8.0f
-#define DEFAULT_MODE         0
-#define DEFAULT_BRIGHTNESS   1.0f
-#define DEFAULT_COLOR_RGB    0xFFA028  /* warm amber */
+#define DEFAULT_SPEED_RPM  8.0f
+#define DEFAULT_MODE       0
+#define DEFAULT_BRIGHTNESS 1.0f
+#define DEFAULT_COLOR_RGB  0xFFA028 /* warm amber */
 
-#define NVS_NAMESPACE        "fresnel"
+#define NVS_NAMESPACE "fresnel"
 
-esp_err_t config_manager_init(void)
-{
+esp_err_t config_manager_init(void) {
     if (s_config_mutex == NULL) {
         s_config_mutex = xSemaphoreCreateMutex();
         if (s_config_mutex == NULL) {
@@ -29,20 +28,19 @@ esp_err_t config_manager_init(void)
         }
     }
 
-    s_config.speed_rpm   = DEFAULT_SPEED_RPM;
-    s_config.mode          = DEFAULT_MODE;
-    s_config.brightness    = DEFAULT_BRIGHTNESS;
-    s_config.color_rgb     = DEFAULT_COLOR_RGB;
-    s_config.wifi_ssid[0]  = '\0';
-    s_config.wifi_pass[0]  = '\0';
+    s_config.speed_rpm = DEFAULT_SPEED_RPM;
+    s_config.mode = DEFAULT_MODE;
+    s_config.brightness = DEFAULT_BRIGHTNESS;
+    s_config.color_rgb = DEFAULT_COLOR_RGB;
+    s_config.wifi_ssid[0] = '\0';
+    s_config.wifi_pass[0] = '\0';
 
     ESP_LOGI(TAG, "Runtime config initialized (speed=%.1f rpm, brightness=%.2f, color=0x%06X)",
-             s_config.speed_rpm, s_config.brightness, (unsigned int)s_config.color_rgb);
+             s_config.speed_rpm, s_config.brightness, (unsigned int) s_config.color_rgb);
     return ESP_OK;
 }
 
-esp_err_t config_manager_get(runtime_config_t *out_cfg)
-{
+esp_err_t config_manager_get(runtime_config_t *out_cfg) {
     if (out_cfg == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -58,8 +56,7 @@ esp_err_t config_manager_get(runtime_config_t *out_cfg)
     return ESP_OK;
 }
 
-esp_err_t config_manager_set(const runtime_config_t *in_cfg)
-{
+esp_err_t config_manager_set(const runtime_config_t *in_cfg) {
     if (in_cfg == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -75,8 +72,7 @@ esp_err_t config_manager_set(const runtime_config_t *in_cfg)
     return ESP_OK;
 }
 
-esp_err_t config_manager_set_speed(float rpm)
-{
+esp_err_t config_manager_set_speed(float rpm) {
     if (s_config_mutex == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -88,8 +84,7 @@ esp_err_t config_manager_set_speed(float rpm)
     return ESP_OK;
 }
 
-esp_err_t config_manager_set_mode(int32_t mode)
-{
+esp_err_t config_manager_set_mode(int32_t mode) {
     if (s_config_mutex == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -101,8 +96,7 @@ esp_err_t config_manager_set_mode(int32_t mode)
     return ESP_OK;
 }
 
-esp_err_t config_manager_set_brightness(float brightness)
-{
+esp_err_t config_manager_set_brightness(float brightness) {
     if (s_config_mutex == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -114,8 +108,7 @@ esp_err_t config_manager_set_brightness(float brightness)
     return ESP_OK;
 }
 
-esp_err_t config_manager_set_color(uint32_t rgb)
-{
+esp_err_t config_manager_set_color(uint32_t rgb) {
     if (s_config_mutex == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -130,8 +123,7 @@ esp_err_t config_manager_set_color(uint32_t rgb)
 /* ---------- NVS read/write ---------- */
 /* NVS API is thread-safe for internal state, but s_config struct is not */
 
-esp_err_t config_manager_load_from_nvs(void)
-{
+esp_err_t config_manager_load_from_nvs(void) {
     if (s_config_mutex == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -148,7 +140,10 @@ esp_err_t config_manager_load_from_nvs(void)
     }
 
     /* speed_rpm (float) */
-    union { uint32_t u; float f; } conv;
+    union {
+        uint32_t u;
+        float f;
+    } conv;
     conv.f = DEFAULT_SPEED_RPM;
     err = nvs_get_u32(handle, "speed_rpm", &conv.u);
     if (err == ESP_OK) {
@@ -158,10 +153,10 @@ esp_err_t config_manager_load_from_nvs(void)
     }
 
     /* mode (uint8_t stored as u8) */
-    uint8_t mode_u8 = (uint8_t)DEFAULT_MODE;
+    uint8_t mode_u8 = (uint8_t) DEFAULT_MODE;
     err = nvs_get_u8(handle, "mode", &mode_u8);
     if (err == ESP_OK) {
-        s_config.mode = (int32_t)mode_u8;
+        s_config.mode = (int32_t) mode_u8;
     } else {
         ESP_LOGW(TAG, "NVS key mode missing, using default");
     }
@@ -189,7 +184,7 @@ esp_err_t config_manager_load_from_nvs(void)
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS key color_b missing, using default");
     }
-    s_config.color_rgb = ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+    s_config.color_rgb = ((uint32_t) r << 16) | ((uint32_t) g << 8) | (uint32_t) b;
 
     /* wifi_ssid (string, max 31 chars + null) */
     size_t ssid_len = sizeof(s_config.wifi_ssid);
@@ -212,12 +207,12 @@ esp_err_t config_manager_load_from_nvs(void)
     xSemaphoreGive(s_config_mutex);
 
     ESP_LOGI(TAG, "Config loaded from NVS (speed=%.1f, mode=%ld, brightness=%.2f, color=0x%06X)",
-             s_config.speed_rpm, (long)s_config.mode, s_config.brightness, (unsigned int)s_config.color_rgb);
+             s_config.speed_rpm, (long) s_config.mode, s_config.brightness,
+             (unsigned int) s_config.color_rgb);
     return ESP_OK;
 }
 
-esp_err_t config_manager_save_to_nvs(void)
-{
+esp_err_t config_manager_save_to_nvs(void) {
     if (s_config_mutex == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -234,7 +229,10 @@ esp_err_t config_manager_save_to_nvs(void)
     }
 
     /* speed_rpm */
-    union { uint32_t u; float f; } conv;
+    union {
+        uint32_t u;
+        float f;
+    } conv;
     conv.f = s_config.speed_rpm;
     err = nvs_set_u32(handle, "speed_rpm", conv.u);
     if (err != ESP_OK) {
@@ -242,7 +240,7 @@ esp_err_t config_manager_save_to_nvs(void)
     }
 
     /* mode */
-    err = nvs_set_u8(handle, "mode", (uint8_t)s_config.mode);
+    err = nvs_set_u8(handle, "mode", (uint8_t) s_config.mode);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS set mode failed: %s", esp_err_to_name(err));
     }
@@ -255,15 +253,15 @@ esp_err_t config_manager_save_to_nvs(void)
     }
 
     /* color components */
-    err = nvs_set_u8(handle, "color_r", (uint8_t)((s_config.color_rgb >> 16) & 0xFF));
+    err = nvs_set_u8(handle, "color_r", (uint8_t) ((s_config.color_rgb >> 16) & 0xFF));
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS set color_r failed: %s", esp_err_to_name(err));
     }
-    err = nvs_set_u8(handle, "color_g", (uint8_t)((s_config.color_rgb >> 8) & 0xFF));
+    err = nvs_set_u8(handle, "color_g", (uint8_t) ((s_config.color_rgb >> 8) & 0xFF));
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS set color_g failed: %s", esp_err_to_name(err));
     }
-    err = nvs_set_u8(handle, "color_b", (uint8_t)(s_config.color_rgb & 0xFF));
+    err = nvs_set_u8(handle, "color_b", (uint8_t) (s_config.color_rgb & 0xFF));
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS set color_b failed: %s", esp_err_to_name(err));
     }

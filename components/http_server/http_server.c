@@ -17,8 +17,7 @@ static httpd_handle_t s_server = NULL;
 
 /* ---------- helpers ---------- */
 
-static int get_rssi(void)
-{
+static int get_rssi(void) {
     if (wifi_manager_get_status() == WIFI_STATUS_CONNECTED) {
         wifi_ap_record_t ap_info;
         if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
@@ -28,19 +27,20 @@ static int get_rssi(void)
     return 0;
 }
 
-static const char *status_str(void)
-{
+static const char *status_str(void) {
     switch (wifi_manager_get_status()) {
-    case WIFI_STATUS_CONNECTED: return "connected";
-    case WIFI_STATUS_AP_MODE:   return "ap_mode";
-    default:                    return "disconnected";
+    case WIFI_STATUS_CONNECTED:
+        return "connected";
+    case WIFI_STATUS_AP_MODE:
+        return "ap_mode";
+    default:
+        return "disconnected";
     }
 }
 
 /* ---------- GET /api/status ---------- */
 
-static esp_err_t api_status_get_handler(httpd_req_t *req)
-{
+static esp_err_t api_status_get_handler(httpd_req_t *req) {
     runtime_config_t cfg;
     if (config_manager_get(&cfg) != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "config error");
@@ -61,13 +61,8 @@ static esp_err_t api_status_get_handler(httpd_req_t *req)
              "\"color\":\"0x%06X\""
              "}"
              "}",
-             status_str(),
-             wifi_manager_get_ip(),
-             get_rssi(),
-             cfg.speed_rpm,
-             (long)cfg.mode,
-             cfg.brightness,
-             (unsigned int)cfg.color_rgb);
+             status_str(), wifi_manager_get_ip(), get_rssi(), cfg.speed_rpm, (long) cfg.mode,
+             cfg.brightness, (unsigned int) cfg.color_rgb);
 
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json, HTTPD_RESP_USE_STRLEN);
@@ -76,8 +71,7 @@ static esp_err_t api_status_get_handler(httpd_req_t *req)
 
 /* ---------- POST /api/config ---------- */
 
-static esp_err_t api_config_post_handler(httpd_req_t *req)
-{
+static esp_err_t api_config_post_handler(httpd_req_t *req) {
     /* Validate Content-Type */
     char ct_buf[64] = {0};
     if (httpd_req_get_hdr_value_str(req, "Content-Type", ct_buf, sizeof(ct_buf)) != ESP_OK ||
@@ -134,7 +128,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
     if (key_ptr != NULL) {
         long mode_l = -1;
         if (sscanf(key_ptr, "\"mode\":%ld", &mode_l) == 1) {
-            mode = (int32_t)mode_l;
+            mode = (int32_t) mode_l;
         }
     }
     key_ptr = strstr(buf, "\"color\"");
@@ -153,7 +147,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
                 val = strtoul(hex_str, &endptr, 16);
             }
             if (endptr != NULL && *endptr == '\0' && errno == 0 && val <= 0xFFFFFF) {
-                color = (unsigned int)val;
+                color = (unsigned int) val;
             } else {
                 ESP_LOGW(TAG, "Invalid color string: %s", hex_str);
             }
@@ -174,8 +168,9 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
 
     /* Validate and apply */
     if (speed_rpm >= 0.0f) {
-        if (speed_rpm > 60.0f) speed_rpm = 60.0f;
-        ipc_cmd_t cmd = { .type = IPC_CMD_SET_SPEED, .data.speed_rpm = speed_rpm };
+        if (speed_rpm > 60.0f)
+            speed_rpm = 60.0f;
+        ipc_cmd_t cmd = {.type = IPC_CMD_SET_SPEED, .data.speed_rpm = speed_rpm};
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (speed)");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
@@ -183,8 +178,9 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         }
     }
     if (brightness >= 0.0f) {
-        if (brightness > 1.0f) brightness = 1.0f;
-        ipc_cmd_t cmd = { .type = IPC_CMD_SET_BRIGHTNESS, .data.brightness = brightness };
+        if (brightness > 1.0f)
+            brightness = 1.0f;
+        ipc_cmd_t cmd = {.type = IPC_CMD_SET_BRIGHTNESS, .data.brightness = brightness};
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (brightness)");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
@@ -192,7 +188,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         }
     }
     if (mode >= 0 && mode <= 3) {
-        ipc_cmd_t cmd = { .type = IPC_CMD_SET_MODE, .data.mode = mode };
+        ipc_cmd_t cmd = {.type = IPC_CMD_SET_MODE, .data.mode = mode};
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (mode)");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
@@ -203,7 +199,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
     if (color != 0xFFFFFFFF) {
-        ipc_cmd_t cmd = { .type = IPC_CMD_SET_COLOR, .data.color_rgb = (uint32_t)color };
+        ipc_cmd_t cmd = {.type = IPC_CMD_SET_COLOR, .data.color_rgb = (uint32_t) color};
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (color)");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
@@ -212,7 +208,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
     }
 
     /* Send IPC_CMD_COMMIT and wait for animation task to process it */
-    ipc_cmd_t commit_cmd = { .type = IPC_CMD_COMMIT };
+    ipc_cmd_t commit_cmd = {.type = IPC_CMD_COMMIT};
     if (xQueueSend(ipc_queue, &commit_cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "IPC queue full (commit)");
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
@@ -250,8 +246,10 @@ static const char s_index_html[] =
     "<title>Fresnel Beacon</title>"
     "<style>"
     "*{box-sizing:border-box;margin:0;padding:0}"
-    "body{font-family:system-ui,-apple-system,sans-serif;background:#0f1115;color:#e4e6eb;padding:1rem;line-height:1.5}"
-    ".card{background:#181b21;border:1px solid #23262d;border-radius:12px;padding:1rem;margin-bottom:1rem}"
+    "body{font-family:system-ui,-apple-system,sans-serif;background:#0f1115;color:#e4e6eb;padding:"
+    "1rem;line-height:1.5}"
+    ".card{background:#181b21;border:1px solid "
+    "#23262d;border-radius:12px;padding:1rem;margin-bottom:1rem}"
     "h1{font-size:1.25rem;margin-bottom:.5rem;color:#fff}"
     ".status{display:flex;gap:.5rem;align-items:center;margin-bottom:1rem}"
     ".dot{width:10px;height:10px;border-radius:50%;background:#888}"
@@ -261,14 +259,17 @@ static const char s_index_html[] =
     ".col{flex:1;min-width:260px}"
     "label{display:block;font-size:.85rem;color:#9aa0a6;margin-bottom:.35rem}"
     "input[type=range]{width:100%;margin-bottom:.25rem}"
-    "input[type=color]{width:100%;height:40px;border:none;border-radius:6px;cursor:pointer;background:none}"
-    "select{width:100%;padding:.5rem;border-radius:6px;border:1px solid #333;background:#0f1115;color:#e4e6eb}"
+    "input[type=color]{width:100%;height:40px;border:none;border-radius:6px;cursor:pointer;"
+    "background:none}"
+    "select{width:100%;padding:.5rem;border-radius:6px;border:1px solid "
+    "#333;background:#0f1115;color:#e4e6eb}"
     ".presets{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}"
     ".preset{width:32px;height:32px;border-radius:50%;border:2px solid #333;cursor:pointer}"
     ".preset:hover{border-color:#fff}"
     ".val{font-size:.8rem;color:#9aa0a6;text-align:right}"
     ".info{font-size:.8rem;color:#9aa0a6;margin-top:.25rem}"
-    "button{width:100%;padding:.65rem;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:.95rem;cursor:pointer;margin-top:.5rem}"
+    "button{width:100%;padding:.65rem;border:none;border-radius:8px;background:#2563eb;color:#fff;"
+    "font-size:.95rem;cursor:pointer;margin-top:.5rem}"
     "button:hover{background:#1d4ed8}"
     "#connStatus{font-size:.8rem;color:#9aa0a6;margin-top:.25rem}"
     "</style>"
@@ -362,7 +363,9 @@ static const char s_index_html[] =
     "}"
     "async function sendConfig(body){"
     "try{"
-    "let r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});"
+    "let r=await "
+    "fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/"
+    "json'},body:JSON.stringify(body)});"
     "if(!r.ok)throw new Error('HTTP '+r.status);"
     "connStatus.textContent='Saved.';"
     "setTimeout(()=>connStatus.textContent='',2000);"
@@ -379,8 +382,10 @@ static const char s_index_html[] =
     "color:'#'+c"
     "});"
     "}"
-    "speed.addEventListener('input',()=>{speedVal.textContent=parseFloat(speed.value).toFixed(1);});"
-    "bright.addEventListener('input',()=>{brightVal.textContent=parseFloat(bright.value).toFixed(2);});"
+    "speed.addEventListener('input',()=>{speedVal.textContent=parseFloat(speed.value).toFixed(1);})"
+    ";"
+    "bright.addEventListener('input',()=>{brightVal.textContent=parseFloat(bright.value).toFixed(2)"
+    ";});"
     "document.querySelectorAll('.preset').forEach(p=>{"
     "p.addEventListener('click',()=>{color.value=p.dataset.c;post();});"
     "});"
@@ -393,8 +398,7 @@ static const char s_index_html[] =
     "</body>"
     "</html>";
 
-static esp_err_t root_get_handler(httpd_req_t *req)
-{
+static esp_err_t root_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, s_index_html, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
@@ -403,30 +407,19 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 /* ---------- URI table ---------- */
 
 static const httpd_uri_t uri_status = {
-    .uri      = "/api/status",
-    .method   = HTTP_GET,
-    .handler  = api_status_get_handler,
-    .user_ctx = NULL
-};
+    .uri = "/api/status", .method = HTTP_GET, .handler = api_status_get_handler, .user_ctx = NULL};
 
-static const httpd_uri_t uri_config = {
-    .uri      = "/api/config",
-    .method   = HTTP_POST,
-    .handler  = api_config_post_handler,
-    .user_ctx = NULL
-};
+static const httpd_uri_t uri_config = {.uri = "/api/config",
+                                       .method = HTTP_POST,
+                                       .handler = api_config_post_handler,
+                                       .user_ctx = NULL};
 
 static const httpd_uri_t uri_root = {
-    .uri      = "/",
-    .method   = HTTP_GET,
-    .handler  = root_get_handler,
-    .user_ctx = NULL
-};
+    .uri = "/", .method = HTTP_GET, .handler = root_get_handler, .user_ctx = NULL};
 
 /* ---------- public API ---------- */
 
-esp_err_t http_server_init(void)
-{
+esp_err_t http_server_init(void) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.lru_purge_enable = true;
 
@@ -453,8 +446,7 @@ esp_err_t http_server_init(void)
     return ESP_OK;
 }
 
-void http_server_stop(void)
-{
+void http_server_stop(void) {
     if (s_server != NULL) {
         esp_err_t err = httpd_stop(s_server);
         if (err != ESP_OK) {
@@ -468,7 +460,9 @@ void http_server_stop(void)
 #else /* __linux__ */
 
 /* Stub implementations for host builds / unit tests */
-esp_err_t http_server_init(void) { return ESP_OK; }
-void http_server_stop(void) { }
+esp_err_t http_server_init(void) {
+    return ESP_OK;
+}
+void http_server_stop(void) {}
 
 #endif /* __linux__ */
