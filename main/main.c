@@ -96,7 +96,7 @@ void app_main(void)
     log_system_info();
 
     const size_t stack_size = 4096;
-    BaseType_t task_created = xTaskCreate(beacon_animation_task, "beacon", stack_size, NULL, 5, NULL);
+    BaseType_t task_created = xTaskCreate(beacon_animation_task, "beacon", stack_size, NULL, 3, NULL);
     if (task_created != pdPASS) {
         ESP_LOGE(TAG, "Failed to create beacon_animation_task (ret=%d)", task_created);
         /* Graceful halt: do not reboot so the error is visible over serial */
