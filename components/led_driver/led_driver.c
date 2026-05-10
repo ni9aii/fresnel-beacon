@@ -124,16 +124,18 @@ esp_err_t led_driver_flush(void)
         // Continue anyway — previous frame may have finished
     }
 
-    // Copy front buffer to back buffer under mutex, then release
+    // Copy front buffer to back buffer under mutex
     memcpy(s_pixels_back, s_pixels_front, sizeof(s_pixels_front));
+
+    // Hand the stable back buffer to RMT (non-blocking DMA read) — keep mutex held
+    // until transmit is issued to prevent concurrent overwrite of s_pixels_back
+    rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
+    ret = rmt_transmit(s_led_chan, s_led_encoder, s_pixels_back, sizeof(s_pixels_back), &tx_cfg);
 
     if (led_mutex != NULL) {
         xSemaphoreGive(led_mutex);
     }
 
-    // Hand the stable back buffer to RMT (non-blocking DMA read)
-    rmt_transmit_config_t tx_cfg = { .loop_count = 0 };
-    ret = rmt_transmit(s_led_chan, s_led_encoder, s_pixels_back, sizeof(s_pixels_back), &tx_cfg);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "rmt_transmit failed: %s", esp_err_to_name(ret));
         return ret;

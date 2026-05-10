@@ -108,33 +108,44 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
     int32_t mode = -1;
     unsigned int color = 0xFFFFFFFF;
 
-    if (strstr(buf, "\"speed_rpm\"")) {
-        sscanf(strstr(buf, "\"speed_rpm\""), "\"speed_rpm\":%f", &speed_rpm);
+    char *key_ptr = NULL;
+
+    key_ptr = strstr(buf, "\"speed_rpm\"");
+    if (key_ptr != NULL) {
+        if (sscanf(key_ptr, "\"speed_rpm\":%f", &speed_rpm) != 1) {
+            speed_rpm = -1.0f; /* keep sentinel if parse failed */
+        }
     }
-    if (strstr(buf, "\"brightness\"")) {
-        sscanf(strstr(buf, "\"brightness\""), "\"brightness\":%f", &brightness);
+    key_ptr = strstr(buf, "\"brightness\"");
+    if (key_ptr != NULL) {
+        if (sscanf(key_ptr, "\"brightness\":%f", &brightness) != 1) {
+            brightness = -1.0f;
+        }
     }
-    if (strstr(buf, "\"mode\"")) {
-        long mode_l = 0;
-        sscanf(strstr(buf, "\"mode\""), "\"mode\":%ld", &mode_l);
-        mode = (int)mode_l;
+    key_ptr = strstr(buf, "\"mode\"");
+    if (key_ptr != NULL) {
+        long mode_l = -1;
+        if (sscanf(key_ptr, "\"mode\":%ld", &mode_l) == 1) {
+            mode = (int32_t)mode_l;
+        }
     }
-    if (strstr(buf, "\"color\"")) {
-        char *color_ptr = strstr(buf, "\"color\"");
-        if (color_ptr) {
-            /* Try hex string form first: "0xFFA028" or "#FFA028" */
-            char hex_str[16] = {0};
-            if (sscanf(color_ptr, "\"color\":\"%15[^\"]\"", hex_str) == 1) {
-                if (hex_str[0] == '#' && strlen(hex_str) == 7) {
-                    color = (unsigned int)strtol(hex_str + 1, NULL, 16);
-                } else if (strlen(hex_str) > 2 && (hex_str[1] == 'x' || hex_str[1] == 'X')) {
-                    color = (unsigned int)strtol(hex_str + 2, NULL, 16);
-                } else {
-                    color = (unsigned int)strtol(hex_str, NULL, 16);
-                }
+    key_ptr = strstr(buf, "\"color\"");
+    if (key_ptr != NULL) {
+        /* Try hex string form first: "0xFFA028" or "#FFA028" */
+        char hex_str[16] = {0};
+        if (sscanf(key_ptr, "\"color\":\"%15[^\"]\"", hex_str) == 1) {
+            if (hex_str[0] == '#' && strlen(hex_str) == 7) {
+                color = (unsigned int)strtol(hex_str + 1, NULL, 16);
+            } else if (strlen(hex_str) > 2 && (hex_str[1] == 'x' || hex_str[1] == 'X')) {
+                color = (unsigned int)strtol(hex_str + 2, NULL, 16);
             } else {
-                /* Try numeric form */
-                sscanf(color_ptr, "\"color\":%u", &color);
+                color = (unsigned int)strtol(hex_str, NULL, 16);
+            }
+        } else {
+            /* Try numeric form */
+            unsigned int color_tmp = 0xFFFFFFFF;
+            if (sscanf(key_ptr, "\"color\":%u", &color_tmp) == 1) {
+                color = color_tmp;
             }
         }
     }
