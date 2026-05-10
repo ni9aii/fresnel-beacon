@@ -88,10 +88,8 @@ jobs:
           target: esp32s3
           command: idf.py build
 
-      - name: Generate checksums
-        run: |
-          sha256sum build/fresnel-beacon.bin > build/fresnel-beacon.bin.sha256
-          sha256sum build/fresnel-beacon.elf > build/fresnel-beacon.elf.sha256
+      - name: Firmware size report
+        run: ls -lh build/*.bin build/*.elf 2>/dev/null || true
 
       - name: Create GitHub Release
         run: |
@@ -100,8 +98,6 @@ jobs:
             --notes "ESP32-S3 firmware for WS2812B 8×8 matrix lighthouse lamp.
           Flash with: esptool.py write_flash 0x0 fresnel-beacon.bin" \
             build/fresnel-beacon.bin \
-            build/fresnel-beacon.bin.sha256 \
-            build/fresnel-beacon.elf \
-            build/fresnel-beacon.elf.sha256
+            build/fresnel-beacon.elf
         env:
           GH_TOKEN: ${{ github.token }}
