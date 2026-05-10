@@ -64,8 +64,11 @@ void beacon_animation_task(void *arg)
     TickType_t last_wake = xTaskGetTickCount();
     uint32_t iter = 0;
 
+    /* Skip watchdog registration in Wokwi simulation — RMT timing is not accurate */
+#ifndef WOKWI_SIMULATION
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
     ESP_LOGI(TAG, "Task watchdog registered (current task)");
+#endif
 
     while (1) {
         /* Drain IPC command queue (non-blocking) */
@@ -115,8 +118,6 @@ void beacon_animation_task(void *arg)
             }
         }
 
-        esp_task_wdt_reset();
-
         esp_err_t flush_ret = led_driver_flush();
         if (flush_ret != ESP_OK) {
             ESP_LOGE(TAG, "led_driver_flush failed: %s", esp_err_to_name(flush_ret));
@@ -132,13 +133,13 @@ void beacon_animation_task(void *arg)
             iter = 0;
         }
 
-        esp_task_wdt_reset();
-
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(FRAME_MS));
     }
 
     // Task exit cleanup (should never reach here in normal operation)
+#ifndef WOKWI_SIMULATION
     ESP_ERROR_CHECK(esp_task_wdt_delete(NULL));
     ESP_LOGI(TAG, "Task watchdog unregistered");
+#endif
     vTaskDelete(NULL);
 }
