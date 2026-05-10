@@ -7,56 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-10
+
 ### Added
-- **Phase 2**: Runtime configuration system
-  - `config_manager` component — NVS-backed persistent config (speed, mode, brightness, color)
-  - `ipc` component — thread-safe command queue between HTTP server and animation task
-  - `http_server` component — REST API (`GET /api/status`, `POST /api/config`) + embedded Web UI
-  - `wifi_manager` component — WiFi STA with AP fallback, WPA2_PSK password derived from MAC
-- `.clang-format` — LLVM style, 4-space indent, 100 column limit
-- `sdkconfig.defaults` expanded with log level, stack size, RMT, and NVS encryption settings
-- Content-Type validation on POST `/api/config`
-- `strtoul` + `errno` + range check for color parser in HTTP handler
-- `CONFIG_MANAGER_DEFAULTS()` macro to centralize default values
-- `extern "C"` guards in all 8 public headers
-- `ipc_wait_commit()` documentation for timeout semantics
+
+- **IPC queue** (`components/ipc/`) — thread-safe inter-process communication for config updates between HTTP server and animation task.
+- **Config manager** (`components/config_manager/`) — runtime configuration with NVS persistence. Supports speed, mode, brightness, color.
+- **WiFi manager** (`components/wifi_manager/`) — STA mode with AP fallback. AP SSID includes MAC suffix; password derived from MAC address (printed on boot).
+- **HTTP server + Web UI** (`components/http_server/`) — REST API (`GET /api/status`, `POST /api/config`) with embedded HTML/JS control panel.
+- **Host unit tests** for `test_led_driver.c` (requires `-lm` for `roundf`).
+- **ESP-IDF Unity tests** — `test_config_manager.c`, `test_ipc.c`, `test_esp_http_server.c`, `test_esp_led_driver.c`, `test_esp_wifi_manager.c`.
+- **`.clang-format`** — LLVM-based style config (4-space indent, 100 column limit).
+- **Formatting check** in CI (non-blocking, `|| true`).
 
 ### Changed
-- Wokwi simulation timeout increased from 30s to 120s in CI
-- `led_driver_deinit()` now calls `led_driver_clear()` **before** deleting mutex (use-after-free fix)
-- HTTP error message changed from `"nvs save failed"` to `"internal error"` (information leak fix)
-- `config_manager.c` spelling unified to American English ("initialized")
-- `wifi_manager.c` indentation fixed in retry loop
+
+- `app_main` architecture — now initializes config_manager, wifi_manager, http_server before spawning animation task.
+- `beacon_animation_task` — per-frame `process_ipc_commands()` call to apply queued config updates.
+- CI `build-and-simulate` timeout increased from 30s to 120s for Wokwi simulation.
 
 ### Fixed
-- **CRITICAL**: WiFi event handler legacy API compatibility (`esp_event_handler_register` / `unregister`)
-- **CRITICAL**: LED DMA race condition — mutex now held through `rmt_transmit`
-- **CRITICAL**: HTTP JSON parser buffer overflow — capped content length + width-limited `sscanf`
-- **CRITICAL**: `release.yml` missing top-level permissions (`contents: read`)
-- **IMPORTANT**: `config_manager_save_to_nvs()` now propagates NVS commit errors
-- **IMPORTANT**: `led_driver_deinit()` now deletes mutex (resource leak fix)
-- **IMPORTANT**: CI action pins (`actions/cache`, `esp-idf-ci-action`) pinned to SHA instead of floating tags
-- **IMPORTANT**: AP mode now uses `WIFI_AUTH_WPA2_PSK` with MAC-derived password instead of open network
-- **IMPORTANT**: `http_server.c` returns HTTP 500 on NVS save failure instead of silent success
-- **LOW**: `.gitignore` expanded with editor/OS artifacts (`*.swp`, `.DS_Store`, `__pycache__`)
-- **LOW**: `release.yml` test job now includes `-lm` for `test_led_driver.c`
 
-### Security
-- AP mode password derived from device MAC address (deterministic, readable from SSID)
-- WiFi credentials stored in NVS but **not** exposed via REST API (by design)
-- HTTP API intentionally unauthenticated for trusted LAN use (documented known risk)
+- CI action pinning reverted from SHA hashes to tag-based references (`actions/cache@v4.2.0`, `espressif/esp-idf-ci-action@v1.1.0`) to resolve "Set up job" failures.
 
-## [0.1.0] — 2026-04-20
+## [0.1.0] — 2026-05-09
 
 ### Added
-- Initial firmware: rotating lighthouse beam animation on 8×8 WS2812B LED matrix
-- `led_driver` — RMT-based WS2812B driver with GRB order, brightness scaling
-- `beacon_animation` — beam sweep with quadratic falloff, `angle_diff` wrap-around
-- `beacon_math` — inline pixel index mapping (serpentine layout), angle difference
-- Host unit tests: `test_beacon_math.c`, `test_led_driver.c`
-- CI pipeline: test, cppcheck static analysis, ESP-IDF build, Wokwi simulation
-- GitHub Release workflow on `v*` tags
-- Task watchdog (5s) + stack high-water mark logging
 
-[Unreleased]: https://github.com/ni9aii/fresnel-beacon/compare/v0.1.0...HEAD
+- Core beacon animation — rotating beam sweep with quadratic falloff on 8×8 WS2812B matrix.
+- RMT-based LED driver (`components/led_driver/`).
+- Inline beacon math (`components/beacon_animation/include/beacon_math.h`).
+- Host unit tests (`test_beacon_math.c`, `test_led_driver.c`).
+- CI pipeline — test, cppcheck analysis, ESP-IDF build, Wokwi simulation.
+- Task watchdog (`esp_task_wdt`) and stack high-water mark logging.
+- Wokwi simulation setup (`diagram.json`, `wokwi.toml`, `scenario.yaml`).
+
+[Unreleased]: https://github.com/ni9aii/fresnel-beacon/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ni9aii/fresnel-beacon/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ni9aii/fresnel-beacon/releases/tag/v0.1.0

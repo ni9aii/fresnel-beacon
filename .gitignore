@@ -20,3 +20,6 @@ compile_commands.json
 .fresh-project.json
 .claude/
 CLAUDE.md
+.graphify_analysis.json
+test_beacon_math
+test_led_driver
