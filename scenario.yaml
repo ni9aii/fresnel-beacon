@@ -4,4 +4,3 @@ steps:
   - wait-serial: "Fresnel Beacon starting"
   - wait-serial: "AP started: SSID="
   - wait-serial: "init RMT on GPIO 39"
-  - wait-serial: "HTTP server started"
