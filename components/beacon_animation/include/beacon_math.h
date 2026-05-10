@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stdint.h>
 #include <math.h>
 #include "led_driver_types.h"
@@ -21,3 +25,7 @@ static inline float angle_diff(float beam_angle, float pixel_angle)
     else if (diff < -(float)M_PI) diff += 2.0f * (float)M_PI;
     return diff;
 }
+
+#ifdef __cplusplus
+}
+#endif

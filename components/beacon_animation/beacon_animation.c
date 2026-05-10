@@ -77,12 +77,7 @@ void beacon_animation_task(void *arg)
         }
 
         /* Read current runtime config */
-        runtime_config_t cfg = {
-            .speed_rpm   = 8.0f,
-            .mode        = 0,
-            .brightness  = 1.0f,
-            .color_rgb   = 0xFFA028,
-        };
+        runtime_config_t cfg = CONFIG_MANAGER_DEFAULTS();
         if (config_manager_get(&cfg) != ESP_OK) {
             ESP_LOGW(TAG, "config_manager_get failed, using defaults");
         }
@@ -96,6 +91,7 @@ void beacon_animation_task(void *arg)
             for (int x = 0; x < LED_MATRIX_COLS; x++) {
                 float dx = x - cx;
                 float dy = y - cy;
+                /* cx/cy are exact half-integers, so dx/dy can only be 0.0f at center */
                 if (dx == 0.0f && dy == 0.0f) continue;
 
                 float pixel_angle = atan2f(dy, dx);

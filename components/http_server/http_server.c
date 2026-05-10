@@ -171,13 +171,16 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
             return ESP_FAIL;
         }
     }
-    if (mode >= 0) {
+    if (mode >= 0 && mode <= 3) {
         ipc_cmd_t cmd = { .type = IPC_CMD_SET_MODE, .data.mode = mode };
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (mode)");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
             return ESP_FAIL;
         }
+    } else if (mode > 3) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid mode");
+        return ESP_FAIL;
     }
     if (color != 0xFFFFFFFF) {
         ipc_cmd_t cmd = { .type = IPC_CMD_SET_COLOR, .data.color_rgb = (uint32_t)color };
@@ -207,7 +210,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
     esp_err_t err = config_manager_save_to_nvs();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS save failed: %s", esp_err_to_name(err));
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "nvs save failed");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "internal error");
         return ESP_FAIL;
     }
 

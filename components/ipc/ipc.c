@@ -30,6 +30,14 @@ esp_err_t ipc_init(void)
     return ESP_OK;
 }
 
+/**
+ * @brief Wait for an IPC commit signal.
+ *
+ * @param timeout_ms Maximum time to wait in milliseconds.
+ *                   0 means non-blocking (returns immediately).
+ *                   Use portMAX_DELAY for infinite wait.
+ * @return pdTRUE if the semaphore was taken, pdFALSE on timeout or if not initialised.
+ */
 BaseType_t ipc_wait_commit(uint32_t timeout_ms)
 {
     if (ipc_commit_sem == NULL) {

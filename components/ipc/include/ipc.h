@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -60,3 +64,7 @@ BaseType_t ipc_wait_commit(uint32_t timeout_ms);
  * @brief Signal that IPC_CMD_COMMIT has been processed.
  */
 void ipc_signal_commit(void);
+
+#ifdef __cplusplus
+}
+#endif

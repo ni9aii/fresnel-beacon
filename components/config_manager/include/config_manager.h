@@ -4,6 +4,16 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief Default runtime configuration values.
+ */
+#define CONFIG_MANAGER_DEFAULTS() \
+    (runtime_config_t) { .speed_rpm = 8.0f, .mode = 0, .brightness = 1.0f, .color_rgb = 0xFFA028 }
+
 /**
  * @brief Runtime configuration structure.
  */
@@ -58,3 +68,7 @@ esp_err_t config_manager_load_from_nvs(void);
  * @return ESP_OK on success, or warning-level error if NVS unavailable.
  */
 esp_err_t config_manager_save_to_nvs(void);
+
+#ifdef __cplusplus
+}
+#endif

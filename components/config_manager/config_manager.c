@@ -36,7 +36,7 @@ esp_err_t config_manager_init(void)
     s_config.wifi_ssid[0]  = '\0';
     s_config.wifi_pass[0]  = '\0';
 
-    ESP_LOGI(TAG, "Runtime config initialised (speed=%.1f rpm, brightness=%.2f, color=0x%06X)",
+    ESP_LOGI(TAG, "Runtime config initialized (speed=%.1f rpm, brightness=%.2f, color=0x%06X)",
              s_config.speed_rpm, s_config.brightness, (unsigned int)s_config.color_rgb);
     return ESP_OK;
 }

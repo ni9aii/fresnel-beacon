@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 /* Shared types and constants for the LED driver.
@@ -16,3 +20,7 @@ typedef struct {
     uint8_t g;
     uint8_t b;
 } rgb_t;
+
+#ifdef __cplusplus
+}
+#endif

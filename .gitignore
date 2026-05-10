@@ -8,6 +8,13 @@ main/credentials.h
 .hermes/
 graphify-out/
 *.orig
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
 compile_commands.json
 .zed/
 .fresh-project.json

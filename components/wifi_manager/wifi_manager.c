@@ -64,9 +64,9 @@ static void event_handler(void *arg, esp_event_base_t event_base,
             ESP_LOGI(TAG, "Retry %d/%d", s_retry_count, MAX_RETRIES);
             update_status(WIFI_STATUS_CONNECTING);
             esp_err_t err = esp_wifi_connect();
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG, "esp_wifi_connect() failed: %s", esp_err_to_name(err));
-        }
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "esp_wifi_connect() failed: %s", esp_err_to_name(err));
+            }
         } else {
             ESP_LOGW(TAG, "Max retries reached, falling back to AP mode");
             update_status(WIFI_STATUS_DISCONNECTED);

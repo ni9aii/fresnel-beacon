@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "esp_err.h"
 
 /**
@@ -40,3 +44,7 @@ const char *wifi_manager_get_ip(void);
  * @return ESP_OK on success.
  */
 esp_err_t wifi_manager_start_ap(void);
+
+#ifdef __cplusplus
+}
+#endif

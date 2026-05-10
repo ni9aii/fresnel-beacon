@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "esp_err.h"
 
 /**
@@ -15,3 +19,7 @@ esp_err_t http_server_init(void);
  * @brief Stop the HTTP server.
  */
 void http_server_stop(void);
+
+#ifdef __cplusplus
+}
+#endif
