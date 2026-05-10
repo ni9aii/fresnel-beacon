@@ -1,6 +1,6 @@
 #include "beacon_animation.h"
 #include "beacon_math.h"
-#include "led_driver.h"
+#include "renderer.h"
 #include "ipc.h"
 #include "config_manager.h"
 #include "freertos/FreeRTOS.h"
@@ -52,6 +52,14 @@ static void process_ipc_commands(void) {
 }
 
 void beacon_animation_task(void *arg) {
+    animation_config_t *anim_cfg = (animation_config_t *) arg;
+    renderer_t *renderer = anim_cfg ? anim_cfg->renderer : NULL;
+    if (renderer == NULL) {
+        ESP_LOGE("beacon", "No renderer provided to animation task");
+        vTaskDelete(NULL);
+        return;
+    }
+
     const float cx = (LED_MATRIX_COLS - 1) / 2.0f;
     const float cy = (LED_MATRIX_ROWS - 1) / 2.0f;
     const float dt = FRAME_MS / 1000.0f;
@@ -82,7 +90,7 @@ void beacon_animation_task(void *arg) {
         const float omega = 2.0f * (float) M_PI * cfg.speed_rpm / 60.0f; // rad/s
         rgb_t beam_color = unpack_rgb(cfg.color_rgb);
 
-        led_driver_clear();
+        renderer_clear(renderer);
 
         for (int y = 0; y < LED_MATRIX_ROWS; y++) {
             for (int x = 0; x < LED_MATRIX_COLS; x++) {
@@ -110,13 +118,13 @@ void beacon_animation_task(void *arg) {
                     .g = (uint8_t) (beam_color.g * brightness),
                     .b = (uint8_t) (beam_color.b * brightness),
                 };
-                led_driver_set_pixel(pixel_index(x, y), color);
+                renderer_set_pixel(renderer, pixel_index(x, y), color);
             }
         }
 
-        esp_err_t flush_ret = led_driver_flush();
+        esp_err_t flush_ret = renderer_flush(renderer);
         if (flush_ret != ESP_OK) {
-            ESP_LOGE(TAG, "led_driver_flush failed: %s", esp_err_to_name(flush_ret));
+            ESP_LOGE(TAG, "renderer_flush failed: %s", esp_err_to_name(flush_ret));
         }
 
         angle += omega * dt;

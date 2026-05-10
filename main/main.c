@@ -6,7 +6,7 @@
 #include "esp_mac.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
-#include "led_driver.h"
+#include "renderer.h"
 #include "beacon_animation.h"
 #include "ipc.h"
 #include "config_manager.h"
@@ -14,6 +14,8 @@
 #include "http_server.h"
 
 static const char *TAG = "main";
+
+static renderer_t *s_renderer = &led_renderer;
 
 static void wifi_monitor_task(void *pvParameters) {
     (void) pvParameters;
@@ -90,14 +92,17 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(http_server_init());
     ESP_LOGI(TAG, "Fresnel Beacon started");
-    led_driver_init();
-    ESP_LOGI(TAG, "led_driver_init complete");
+    ESP_ERROR_CHECK(renderer_init(s_renderer, LED_MATRIX_COLS, LED_MATRIX_ROWS));
+    ESP_LOGI(TAG, "renderer_init complete");
 
     log_system_info();
 
+    animation_config_t anim_cfg = {
+        .renderer = s_renderer,
+    };
     const size_t stack_size = 4096;
     BaseType_t task_created =
-        xTaskCreate(beacon_animation_task, "beacon", stack_size, NULL, 3, NULL);
+        xTaskCreate(beacon_animation_task, "beacon", stack_size, &anim_cfg, 3, NULL);
     if (task_created != pdPASS) {
         ESP_LOGE(TAG, "Failed to create beacon_animation_task (ret=%d)", task_created);
         /* Graceful halt: do not reboot so the error is visible over serial */
