@@ -43,7 +43,7 @@ jobs:
       - name: Build and run tests
         run: |
           gcc -Icomponents/led_driver/include -Icomponents/beacon_animation/include -I. test/test_beacon_math.c -lm -o test_beacon_math && ./test_beacon_math
-          gcc -Icomponents/led_driver/include -Icomponents/renderer/include -I. test/test_led_driver.c -lm -o test_led_driver && ./test_led_driver
+          gcc -Icomponents/led_driver/include -Icomponents/renderer/include -I. test/test_led_driver.c components/renderer/renderer.c -lm -o test_led_driver && ./test_led_driver
 
       - name: Check formatting
         run: |
