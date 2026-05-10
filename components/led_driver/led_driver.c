@@ -4,7 +4,7 @@
 #include "driver/rmt_tx.h"
 #include "driver/rmt_encoder.h"
 #include "esp_log.h"
-#include "esp_rom.h"
+#include "rom/ets_sys.h"
 
 static const char *TAG = "led_driver";
 
