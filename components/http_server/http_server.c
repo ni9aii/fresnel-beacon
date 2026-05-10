@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 static const char *TAG = "http_server";
 static httpd_handle_t s_server = NULL;
