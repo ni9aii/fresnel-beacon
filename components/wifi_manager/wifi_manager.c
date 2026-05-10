@@ -136,8 +136,8 @@ esp_err_t wifi_manager_start_ap(void) {
     wifi_config.ap.channel = 1;
     wifi_config.ap.max_connection = 4;
     wifi_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    /* Generate password from MAC: FB + last 4 hex digits of MAC */
-    snprintf((char *) wifi_config.ap.password, sizeof(wifi_config.ap.password), "FB%02X%02X",
+    /* Generate password from MAC: Fresnel + last 4 hex digits of MAC (8+ chars for WPA2) */
+    snprintf((char *) wifi_config.ap.password, sizeof(wifi_config.ap.password), "Fresnel%02X%02X",
              mac[4], mac[5]);
 
     err = esp_wifi_set_mode(WIFI_MODE_AP);
