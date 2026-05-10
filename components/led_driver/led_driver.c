@@ -157,5 +157,9 @@ void led_driver_deinit(void)
         ESP_ERROR_CHECK(rmt_del_channel(s_led_chan));
         s_led_chan = NULL;
     }
+    if (led_mutex != NULL) {
+        vSemaphoreDelete(led_mutex);
+        led_mutex = NULL;
+    }
     led_driver_clear();
 }

@@ -230,7 +230,7 @@ esp_err_t config_manager_save_to_nvs(void)
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS open (RW) failed (%s), config not saved", esp_err_to_name(err));
         xSemaphoreGive(s_config_mutex);
-        return ESP_OK; /* non-fatal */
+        return err;
     }
 
     /* speed_rpm */
@@ -281,6 +281,9 @@ esp_err_t config_manager_save_to_nvs(void)
     err = nvs_commit(handle);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS commit failed: %s", esp_err_to_name(err));
+        nvs_close(handle);
+        xSemaphoreGive(s_config_mutex);
+        return err;
     }
     nvs_close(handle);
 

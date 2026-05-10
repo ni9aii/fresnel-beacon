@@ -207,6 +207,8 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
     esp_err_t err = config_manager_save_to_nvs();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS save failed: %s", esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "nvs save failed");
+        return ESP_FAIL;
     }
 
     httpd_resp_set_type(req, "application/json");
