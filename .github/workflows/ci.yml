@@ -102,6 +102,7 @@ jobs:
           target: esp32s3
           command: |
             idf.py add-dependency espressif/mdns
+            idf.py install-dependencies
             idf.py build -DWOKWI_SIMULATION=1
 
       - name: Firmware size report
