@@ -10,3 +10,20 @@ CONFIG_ESP_TASK_WDT=y
 # Switch to =y in production to ensure automatic recovery.
 CONFIG_ESP_TASK_WDT_PANIC=n
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=5
+
+# Logging
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# Main task stack size (sufficient for animation + HTTP server)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# RMT / LED driver
+CONFIG_RMT_TX_TASK_PRIORITY=5
+CONFIG_RMT_ISR_IRAM_SAFE=n
+
+# NVS
+CONFIG_NVS_ENCRYPTION=n
+
+# Partition table (default single-app is sufficient for now)
+# CONFIG_PARTITION_TABLE_CUSTOM=y
+# CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"

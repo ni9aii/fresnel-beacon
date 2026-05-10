@@ -1,0 +1,20 @@
+# LLVM style with 4-space indentation (matches current codebase)
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Attach
+PointerAlignment: Right
+SortIncludes: false
+IncludeBlocks: Preserve
+SpaceAfterCStyleCast: true
+IndentCaseLabels: false
+AlignConsecutiveMacros: true
+AlignTrailingComments: true
+ReflowComments: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1

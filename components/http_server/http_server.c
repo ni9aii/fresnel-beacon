@@ -78,6 +78,14 @@ static esp_err_t api_status_get_handler(httpd_req_t *req)
 
 static esp_err_t api_config_post_handler(httpd_req_t *req)
 {
+    /* Validate Content-Type */
+    char ct_buf[64] = {0};
+    if (httpd_req_get_hdr_value_str(req, "Content-Type", ct_buf, sizeof(ct_buf)) != ESP_OK ||
+        strncasecmp(ct_buf, "application/json", 16) != 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content-Type must be application/json");
+        return ESP_FAIL;
+    }
+
     if (req->content_len <= 0 || req->content_len > 512) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid content length");
         return ESP_FAIL;
@@ -134,18 +142,30 @@ static esp_err_t api_config_post_handler(httpd_req_t *req)
         /* Try hex string form first: "0xFFA028" or "#FFA028" */
         char hex_str[16] = {0};
         if (sscanf(key_ptr, "\"color\":\"%15[^\"]\"", hex_str) == 1) {
+            char *endptr = NULL;
+            unsigned long val = 0;
+            errno = 0;
             if (hex_str[0] == '#' && strlen(hex_str) == 7) {
-                color = (unsigned int)strtol(hex_str + 1, NULL, 16);
+                val = strtoul(hex_str + 1, &endptr, 16);
             } else if (strlen(hex_str) > 2 && (hex_str[1] == 'x' || hex_str[1] == 'X')) {
-                color = (unsigned int)strtol(hex_str + 2, NULL, 16);
+                val = strtoul(hex_str + 2, &endptr, 16);
             } else {
-                color = (unsigned int)strtol(hex_str, NULL, 16);
+                val = strtoul(hex_str, &endptr, 16);
+            }
+            if (endptr != NULL && *endptr == '\0' && errno == 0 && val <= 0xFFFFFF) {
+                color = (unsigned int)val;
+            } else {
+                ESP_LOGW(TAG, "Invalid color string: %s", hex_str);
             }
         } else {
             /* Try numeric form */
             unsigned int color_tmp = 0xFFFFFFFF;
             if (sscanf(key_ptr, "\"color\":%u", &color_tmp) == 1) {
-                color = color_tmp;
+                if (color_tmp <= 0xFFFFFF) {
+                    color = color_tmp;
+                } else {
+                    ESP_LOGW(TAG, "Color out of range: %u", color_tmp);
+                }
             }
         }
     }
