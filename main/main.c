@@ -5,14 +5,13 @@
 #include "esp_chip_info.h"
 #include "esp_mac.h"
 #include "esp_wifi.h"
+#include "nvs_flash.h"
 #include "led_driver.h"
 #include "beacon_animation.h"
 #include "ipc.h"
 #include "config_manager.h"
 #include "wifi_manager.h"
 #include "http_server.h"
-#include "mdns_service.h"
-#include "nvs_flash.h"
 
 static const char *TAG = "main";
 
@@ -90,8 +89,7 @@ void app_main(void) {
     vTaskDelay(pdMS_TO_TICKS(100));
 
     ESP_ERROR_CHECK(http_server_init());
-    ESP_ERROR_CHECK(mdns_service_init("fresnel-beacon", "Fresnel Beacon Lamp"));
-
+    ESP_LOGI(TAG, "Fresnel Beacon started");
     led_driver_init();
     ESP_LOGI(TAG, "led_driver_init complete");
 
