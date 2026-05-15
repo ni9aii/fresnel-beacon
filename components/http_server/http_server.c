@@ -115,13 +115,13 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
 
     key_ptr = strstr(buf, "\"speed_rpm\"");
     if (key_ptr != NULL) {
-        if (sscanf(key_ptr, "\"speed_rpm\":%f", &speed_rpm) != 1) {
+        if (sscanf(key_ptr, "\"speed_rpm\":%31f", &speed_rpm) != 1) {
             speed_rpm = -1.0f; /* keep sentinel if parse failed */
         }
     }
     key_ptr = strstr(buf, "\"brightness\"");
     if (key_ptr != NULL) {
-        if (sscanf(key_ptr, "\"brightness\":%f", &brightness) != 1) {
+        if (sscanf(key_ptr, "\"brightness\":%31f", &brightness) != 1) {
             brightness = -1.0f;
         }
     }
@@ -147,8 +147,12 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
             } else {
                 val = strtoul(hex_str, &endptr, 16);
             }
-            if (endptr != NULL && *endptr == '\0' && errno == 0 && val <= 0xFFFFFF) {
-                color = (unsigned int) val;
+            if (endptr != NULL && *endptr == '\0' && errno == 0) {
+                if (val > 0xFFFFFF) {
+                    ESP_LOGW(TAG, "Color out of range: 0x%lX", val);
+                } else {
+                    color = (unsigned int) val;
+                }
             } else {
                 ESP_LOGW(TAG, "Invalid color string: %s", hex_str);
             }
@@ -188,14 +192,14 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
             return ESP_FAIL;
         }
     }
-    if (mode >= 0 && mode <= 3) {
+    if (mode >= 0 && mode <= 3 && mode != -1) {
         ipc_cmd_t cmd = {.type = IPC_CMD_SET_MODE, .data.mode = mode};
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
             ESP_LOGW(TAG, "IPC queue full (mode)");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
             return ESP_FAIL;
         }
-    } else if (mode > 3) {
+    } else if (mode > 3 || mode == -1) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid mode");
         return ESP_FAIL;
     }
