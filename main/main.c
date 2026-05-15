@@ -68,7 +68,9 @@ static void log_system_info(void) {
 void app_main(void) {
     ESP_LOGI(TAG, "Fresnel Beacon starting");
 
-    /* Initialise NVS before config manager so we can restore saved settings */
+    /* Initialise NVS before config manager so we can restore saved settings.
+     * With CONFIG_NVS_ENCRYPTION=y, nvs_flash_init() uses the default
+     * partition and key partition from the partition table. */
     esp_err_t nvs_ret = nvs_flash_init();
     if (nvs_ret == ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_LOGW(TAG, "NVS init error (%s), attempting erase and re-init",
@@ -76,6 +78,17 @@ void app_main(void) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         nvs_ret = nvs_flash_init();
     }
+#ifdef CONFIG_NVS_ENCRYPTION
+    if (nvs_ret == 0x111 || nvs_ret == 0x112 || nvs_ret == 0x113) {
+        /* Encryption key errors: ESP_ERR_NVS_SEC_HMAC_KEY_NOT_FOUND (0x111),
+         * ESP_ERR_NVS_SEC_HMAC_KEY_BLOCKED (0x112),
+         * ESP_ERR_NVS_SEC_HMAC_XTS_KEYS_DERIVE_FAIL (0x113).
+         * Erase and re-initialise with fresh key. */
+        ESP_LOGW(TAG, "NVS encryption key error (0x%x), attempting erase and re-init", nvs_ret);
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_ret = nvs_flash_init();
+    }
+#endif
     if (nvs_ret != ESP_OK) {
         ESP_LOGW(TAG, "NVS unavailable (%s), continuing with RAM defaults",
                  esp_err_to_name(nvs_ret));

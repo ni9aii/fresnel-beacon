@@ -16,6 +16,61 @@
 static const char *TAG = "http_server";
 static httpd_handle_t s_server = NULL;
 
+/* ---------- authentication ---------- */
+
+/* Simple token auth: compare against hardcoded token derived from MAC.
+ * In production, use NVS-encrypted storage or device certificate. */
+static char s_auth_token[33] = {0};
+
+static void init_auth_token(void) {
+    if (s_auth_token[0] != '\0') {
+        return;  /* already initialised */
+    }
+    uint8_t mac[6];
+    if (esp_wifi_get_mac(WIFI_IF_STA, mac) == ESP_OK ||
+        esp_wifi_get_mac(WIFI_IF_AP, mac) == ESP_OK) {
+        snprintf(s_auth_token, sizeof(s_auth_token),
+                 "%02x%02x%02x%02x%02x%02x%08x",
+                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+                 (unsigned) esp_random());
+    } else {
+        /* Fallback: random token if MAC unavailable */
+        snprintf(s_auth_token, sizeof(s_auth_token), "fresnel%08x", (unsigned) esp_random());
+    }
+    ESP_LOGI(TAG, "Auth token initialised (print on first boot for setup)");
+}
+
+static bool check_auth(httpd_req_t *req) {
+    char auth_header[64] = {0};
+    if (httpd_req_get_hdr_value_str(req, "Authorization", auth_header, sizeof(auth_header)) != ESP_OK) {
+        return false;
+    }
+    /* Expect "Bearer <token>" */
+    const char *prefix = "Bearer ";
+    size_t prefix_len = strlen(prefix);
+    if (strncasecmp(auth_header, prefix, prefix_len) != 0) {
+        return false;
+    }
+    return strcmp(auth_header + prefix_len, s_auth_token) == 0;
+}
+
+/* ---------- rate limiting ---------- */
+
+static uint32_t s_request_count = 0;
+static uint32_t s_last_reset_ticks = 0;
+
+static bool check_rate_limit(void) {
+    uint32_t now = xTaskGetTickCount();
+    if (now - s_last_reset_ticks > pdMS_TO_TICKS(60000)) {
+        s_request_count = 0;
+        s_last_reset_ticks = now;
+    }
+    if (s_request_count++ > 30) {
+        return false;
+    }
+    return true;
+}
+
 /* ---------- helpers ---------- */
 
 static int get_rssi(void) {
@@ -42,6 +97,11 @@ static const char *status_str(void) {
 /* ---------- GET /api/status ---------- */
 
 static esp_err_t api_status_get_handler(httpd_req_t *req) {
+    if (!check_rate_limit()) {
+        httpd_resp_send_err(req, HTTPD_429_TOO_MANY_REQUESTS, "Rate limit exceeded");
+        return ESP_FAIL;
+    }
+
     runtime_config_t cfg;
     if (config_manager_get(&cfg) != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "config error");
@@ -73,6 +133,17 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
 /* ---------- POST /api/config ---------- */
 
 static esp_err_t api_config_post_handler(httpd_req_t *req) {
+    if (!check_rate_limit()) {
+        httpd_resp_send_err(req, HTTPD_429_TOO_MANY_REQUESTS, "Rate limit exceeded");
+        return ESP_FAIL;
+    }
+
+    /* Require authentication for config changes */
+    if (!check_auth(req)) {
+        httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Invalid or missing token");
+        return ESP_FAIL;
+    }
+
     /* Validate Content-Type */
     char ct_buf[64] = {0};
     if (httpd_req_get_hdr_value_str(req, "Content-Type", ct_buf, sizeof(ct_buf)) != ESP_OK ||
@@ -448,6 +519,8 @@ esp_err_t http_server_init(void) {
     }
 
     ESP_LOGI(TAG, "HTTP server started");
+    init_auth_token();
+    ESP_LOGI(TAG, "Auth token: %s", s_auth_token);
     return ESP_OK;
 }
 
