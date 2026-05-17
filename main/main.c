@@ -115,7 +115,7 @@ void app_main(void) {
     animation_config_t anim_cfg = {
         .renderer = s_renderer,
     };
-    const size_t stack_size = 4096;
+    const size_t stack_size = 8192;
     BaseType_t task_created =
         xTaskCreate(beacon_animation_task, "beacon", stack_size, &anim_cfg, 3, NULL);
     if (task_created != pdPASS) {
@@ -126,6 +126,10 @@ void app_main(void) {
         }
     }
     ESP_LOGI(TAG, "beacon_animation_task created with stack size: %u", stack_size);
+
+    /* Verify stack is sufficient immediately after creation */
+    UBaseType_t high_water = uxTaskGetStackHighWaterMark(NULL);
+    ESP_LOGI(TAG, "Main task stack high water mark: %u", high_water);
 
     task_created = xTaskCreate(wifi_monitor_task, "wifi_mon", 4096, NULL, 3, NULL);
     if (task_created != pdPASS) {

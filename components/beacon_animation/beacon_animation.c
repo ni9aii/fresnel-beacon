@@ -114,6 +114,11 @@ void beacon_animation_task(void *arg) {
 #endif
 
     while (1) {
+        /* Feed watchdog — frame loop must complete within WDT timeout (5s) */
+#ifndef WOKWI_SIMULATION
+        esp_task_wdt_reset();
+#endif
+
         /* Drain IPC command queue (non-blocking) */
         if (ipc_queue != NULL) {
             process_ipc_commands();
