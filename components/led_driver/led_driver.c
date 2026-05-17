@@ -149,9 +149,10 @@ void led_driver_deinit(void) {
         ESP_ERROR_CHECK(rmt_del_channel(s_led_chan));
         s_led_chan = NULL;
     }
+    // Delete mutex BEFORE led_driver_clear() to avoid use-after-free
     if (led_mutex != NULL) {
         vSemaphoreDelete(led_mutex);
         led_mutex = NULL;
     }
-    led_driver_clear();
+    led_driver_clear();  // Safe now - mutex is NULL, will skip mutex operations
 }

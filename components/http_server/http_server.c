@@ -209,7 +209,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     key_ptr = strstr(buf, "\"mode\"");
     if (key_ptr != NULL) {
         long mode_l = -1;
-        if (sscanf(key_ptr, "\"mode\":%ld", &mode_l) == 1) {
+        if (sscanf(key_ptr, "\"mode\":%31ld", &mode_l) == 1) {
             mode = (int32_t) mode_l;
         }
     }
@@ -228,14 +228,12 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
             } else {
                 val = strtoul(hex_str, &endptr, 16);
             }
-            if (endptr != NULL && *endptr == '\0' && errno == 0) {
-                if (val > 0xFFFFFF) {
-                    ESP_LOGW(TAG, "Color out of range: 0x%lX", val);
-                } else {
-                    color = (unsigned int) val;
-                }
-            } else {
+            if (endptr == NULL || *endptr != '\0' || errno != 0) {
                 ESP_LOGW(TAG, "Invalid color string: %s", hex_str);
+            } else if (val > 0xFFFFFF) {
+                ESP_LOGW(TAG, "Color out of range: 0x%lX", val);
+            } else {
+                color = (unsigned int) val;
             }
         } else {
             /* Try numeric form */
