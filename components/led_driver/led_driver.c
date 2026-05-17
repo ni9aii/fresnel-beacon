@@ -154,5 +154,5 @@ void led_driver_deinit(void) {
         vSemaphoreDelete(led_mutex);
         led_mutex = NULL;
     }
-    led_driver_clear();  // Safe now - mutex is NULL, will skip mutex operations
+    led_driver_clear(); // Safe now - mutex is NULL, will skip mutex operations
 }

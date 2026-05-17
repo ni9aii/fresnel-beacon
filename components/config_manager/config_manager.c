@@ -91,15 +91,19 @@ esp_err_t config_manager_set_speed(float rpm) {
 
 esp_err_t config_manager_set_speed_sec(float sec) {
     // Convert seconds per rotation to RPM
-    if (sec <= 0.0f) return ESP_ERR_INVALID_ARG;
+    if (sec <= 0.0f)
+        return ESP_ERR_INVALID_ARG;
     float rpm = 60.0f / sec;
     return config_manager_set_speed(rpm);
 }
 
 esp_err_t config_manager_get_speed_sec(float *out_sec) {
-    if (out_sec == NULL) return ESP_ERR_INVALID_ARG;
-    if (s_config_mutex == NULL) return ESP_ERR_INVALID_STATE;
-    if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) return ESP_ERR_TIMEOUT;
+    if (out_sec == NULL)
+        return ESP_ERR_INVALID_ARG;
+    if (s_config_mutex == NULL)
+        return ESP_ERR_INVALID_STATE;
+    if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
     float rpm = s_config.speed_rpm;
     xSemaphoreGive(s_config_mutex);
     *out_sec = (rpm <= 0.0f) ? 1.0f : (60.0f / rpm);

@@ -24,15 +24,13 @@ static char s_auth_token[33] = {0};
 
 static void init_auth_token(void) {
     if (s_auth_token[0] != '\0') {
-        return;  /* already initialised */
+        return; /* already initialised */
     }
     uint8_t mac[6];
     if (esp_wifi_get_mac(WIFI_IF_STA, mac) == ESP_OK ||
         esp_wifi_get_mac(WIFI_IF_AP, mac) == ESP_OK) {
-        snprintf(s_auth_token, sizeof(s_auth_token),
-                 "%02x%02x%02x%02x%02x%02x%08x",
-                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-                 (unsigned) esp_random());
+        snprintf(s_auth_token, sizeof(s_auth_token), "%02x%02x%02x%02x%02x%02x%08x", mac[0], mac[1],
+                 mac[2], mac[3], mac[4], mac[5], (unsigned) esp_random());
     } else {
         /* Fallback: random token if MAC unavailable */
         snprintf(s_auth_token, sizeof(s_auth_token), "fresnel%08x", (unsigned) esp_random());
@@ -42,7 +40,8 @@ static void init_auth_token(void) {
 
 static bool check_auth(httpd_req_t *req) {
     char auth_header[64] = {0};
-    if (httpd_req_get_hdr_value_str(req, "Authorization", auth_header, sizeof(auth_header)) != ESP_OK) {
+    if (httpd_req_get_hdr_value_str(req, "Authorization", auth_header, sizeof(auth_header)) !=
+        ESP_OK) {
         return false;
     }
     /* Expect "Bearer <token>" */
@@ -125,8 +124,8 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
              "\"color\":\"0x%06X\""
              "}"
              "}",
-             status_str(), wifi_manager_get_ip(), get_rssi(), cfg.speed_rpm, speed_sec, (long) cfg.mode,
-             cfg.brightness, (unsigned int) cfg.color_rgb);
+             status_str(), wifi_manager_get_ip(), get_rssi(), cfg.speed_rpm, speed_sec,
+             (long) cfg.mode, cfg.brightness, (unsigned int) cfg.color_rgb);
 
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json, HTTPD_RESP_USE_STRLEN);
@@ -253,8 +252,10 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     /* Validate and apply */
     if (speed_sec >= 0.0f) {
         // Convert seconds per rotation to RPM and send via IPC
-        if (speed_sec > 20.0f) speed_sec = 20.0f;
-        if (speed_sec < 0.5f) speed_sec = 0.5f;
+        if (speed_sec > 20.0f)
+            speed_sec = 20.0f;
+        if (speed_sec < 0.5f)
+            speed_sec = 0.5f;
         float rpm = 60.0f / speed_sec;
         ipc_cmd_t cmd = {.type = IPC_CMD_SET_SPEED, .data.speed_rpm = rpm};
         if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
@@ -436,7 +437,9 @@ static const char s_index_html[] =
     "function updateUI(d){"
     "if(d.beacon){"
     "let b=d.beacon;"
-    "let displaySec = (typeof b.speed_sec === 'number' && b.speed_sec > 0) ? b.speed_sec.toFixed(2) : (typeof b.speed_rpm === 'number' && b.speed_rpm > 0 ? (60.0 / b.speed_rpm).toFixed(2) : '1.00');"
+    "let displaySec = (typeof b.speed_sec === 'number' && b.speed_sec > 0) ? "
+    "b.speed_sec.toFixed(2) : (typeof b.speed_rpm === 'number' && b.speed_rpm > 0 ? (60.0 / "
+    "b.speed_rpm).toFixed(2) : '1.00');"
     "speed.value=displaySec; speedVal.textContent=displaySec;"
     "bright.value=b.brightness; brightVal.textContent=Number(b.brightness).toFixed(2);"
     "mode.value=b.mode;"

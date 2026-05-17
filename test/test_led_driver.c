@@ -75,7 +75,7 @@ static void test_bounds_reject(void) {
     rgb_t c = {.r = 1, .g = 1, .b = 1};
     /* mock_renderer silently ignores out-of-bounds; verify no crash */
     renderer_set_pixel(&mock_renderer, LED_MATRIX_LEN, c); /* 64 — out of range */
-    renderer_set_pixel(&mock_renderer, 255, c);          /* far out of range */
+    renderer_set_pixel(&mock_renderer, 255, c);            /* far out of range */
     /* If we get here without crash, bounds are handled */
 }
 
