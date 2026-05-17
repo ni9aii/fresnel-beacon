@@ -59,3 +59,27 @@ TEST_CASE("config_manager individual setters work", "[config_manager]") {
     TEST_ASSERT_EQUAL_FLOAT(0.5f, cfg.brightness);
     TEST_ASSERT_EQUAL_UINT32(0x123456, cfg.color_rgb);
 }
+
+TEST_CASE("config_manager set/get speed_sec roundtrip", "[config_manager]") {
+    config_manager_init();
+
+    TEST_ASSERT_EQUAL(ESP_OK, config_manager_set_speed_sec(2.0f));
+    float sec;
+    TEST_ASSERT_EQUAL(ESP_OK, config_manager_get_speed_sec(&sec));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 2.0f, sec);
+
+    // Convert to RPM and verify
+    runtime_config_t cfg;
+    TEST_ASSERT_EQUAL(ESP_OK, config_manager_get(&cfg));
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 30.0f, cfg.speed_rpm);
+
+    // Test min/max clamping
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, config_manager_set_speed_sec(-1.0f));
+    TEST_ASSERT_EQUAL(ESP_OK, config_manager_set_speed_sec(0.5f));
+    TEST_ASSERT_EQUAL(ESP_OK, config_manager_get_speed_sec(&sec));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.5f, sec);
+
+    TEST_ASSERT_EQUAL(ESP_OK, config_manager_set_speed_sec(20.0f));
+    TEST_ASSERT_EQUAL(ESP_OK, config_manager_get_speed_sec(&sec));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 20.0f, sec);
+}

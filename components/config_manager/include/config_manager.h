@@ -48,6 +48,8 @@ esp_err_t config_manager_set(const runtime_config_t *in_cfg);
  * @brief Individual field setters (mutex-protected).
  */
 esp_err_t config_manager_set_speed(float rpm);
+esp_err_t config_manager_set_speed_sec(float sec);
+esp_err_t config_manager_get_speed_sec(float *out_sec);
 esp_err_t config_manager_set_mode(int32_t mode);
 esp_err_t config_manager_set_brightness(float brightness);
 esp_err_t config_manager_set_color(uint32_t rgb);

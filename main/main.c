@@ -110,6 +110,8 @@ void app_main(void) {
 
     log_system_info();
 
+    ESP_ERROR_CHECK(beacon_animation_init());
+
     animation_config_t anim_cfg = {
         .renderer = s_renderer,
     };

@@ -108,7 +108,9 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    char json[384];
+    char json[512];
+    float speed_sec;
+    config_manager_get_speed_sec(&speed_sec);
     snprintf(json, sizeof(json),
              "{"
              "\"status\":\"ok\","
@@ -117,12 +119,13 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
              "\"rssi\":%d,"
              "\"beacon\":{"
              "\"speed_rpm\":%.1f,"
+             "\"speed_sec\":%.2f,"
              "\"mode\":%ld,"
              "\"brightness\":%.2f,"
              "\"color\":\"0x%06X\""
              "}"
              "}",
-             status_str(), wifi_manager_get_ip(), get_rssi(), cfg.speed_rpm, (long) cfg.mode,
+             status_str(), wifi_manager_get_ip(), get_rssi(), cfg.speed_rpm, speed_sec, (long) cfg.mode,
              cfg.brightness, (unsigned int) cfg.color_rgb);
 
     httpd_resp_set_type(req, "application/json");
@@ -178,6 +181,7 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
 
     /* Simple JSON parser: scan for known keys using sscanf */
     float speed_rpm = -1.0f;
+    float speed_sec = -1.0f;
     float brightness = -1.0f;
     int32_t mode = -1;
     unsigned int color = 0xFFFFFFFF;
@@ -188,6 +192,12 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     if (key_ptr != NULL) {
         if (sscanf(key_ptr, "\"speed_rpm\":%31f", &speed_rpm) != 1) {
             speed_rpm = -1.0f; /* keep sentinel if parse failed */
+        }
+    }
+    key_ptr = strstr(buf, "\"speed_sec\"");
+    if (key_ptr != NULL) {
+        if (sscanf(key_ptr, "\"speed_sec\":%31f", &speed_sec) != 1) {
+            speed_sec = -1.0f;
         }
     }
     key_ptr = strstr(buf, "\"brightness\"");
@@ -243,6 +253,18 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     free(buf);
 
     /* Validate and apply */
+    if (speed_sec >= 0.0f) {
+        // Convert seconds per rotation to RPM and send via IPC
+        if (speed_sec > 20.0f) speed_sec = 20.0f;
+        if (speed_sec < 0.5f) speed_sec = 0.5f;
+        float rpm = 60.0f / speed_sec;
+        ipc_cmd_t cmd = {.type = IPC_CMD_SET_SPEED, .data.speed_rpm = rpm};
+        if (xQueueSend(ipc_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
+            ESP_LOGW(TAG, "IPC queue full (speed)");
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "IPC queue full");
+            return ESP_FAIL;
+        }
+    }
     if (speed_rpm >= 0.0f) {
         if (speed_rpm > 60.0f)
             speed_rpm = 60.0f;
@@ -368,7 +390,7 @@ static const char s_index_html[] =
     "</div>"
     "<div class=\"card\">"
     "<label>Speed (RPM)</label>"
-    "<input type=\"range\" id=\"speed\" min=\"0\" max=\"60\" step=\"0.5\" value=\"10\">"
+    "<input type=\"range\" id=\"speed\" min=\"0.5\" max=\"20\" step=\"0.1\" value=\"1.0\">"
     "<div class=\"val\" id=\"speedVal\">10.0</div>"
     "</div>"
     "<div class=\"card\">"
@@ -416,7 +438,8 @@ static const char s_index_html[] =
     "function updateUI(d){"
     "if(d.beacon){"
     "let b=d.beacon;"
-    "speed.value=b.speed_rpm; speedVal.textContent=Number(b.speed_rpm).toFixed(1);"
+    "let displaySec = (typeof b.speed_sec === 'number' && b.speed_sec > 0) ? b.speed_sec.toFixed(2) : (typeof b.speed_rpm === 'number' && b.speed_rpm > 0 ? (60.0 / b.speed_rpm).toFixed(2) : '1.00');"
+    "speed.value=displaySec; speedVal.textContent=displaySec;"
     "bright.value=b.brightness; brightVal.textContent=Number(b.brightness).toFixed(2);"
     "mode.value=b.mode;"
     "if(b.color){color.value=b.color.replace('0x','#').replace('0X','#');}"
