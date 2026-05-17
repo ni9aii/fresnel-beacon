@@ -1,0 +1,12 @@
+# Production defaults for fresnel-beacon
+# Build with: idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.production" build
+
+# Automatic recovery on watchdog timeout
+CONFIG_ESP_TASK_WDT_PANIC=y
+
+# NVS encryption for credential storage
+CONFIG_NVS_ENCRYPTION=y
+CONFIG_NVS_ENCRYPTION_KEYS_IN_FLASH_EFUSE=y
+
+# Reduced logging for smaller binary and less flash wear
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
