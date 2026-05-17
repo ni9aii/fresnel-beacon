@@ -8,6 +8,7 @@
 #ifndef __linux__
 #include "esp_http_server.h"
 #include "esp_wifi.h"
+#include "esp_random.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,7 +98,7 @@ static const char *status_str(void) {
 
 static esp_err_t api_status_get_handler(httpd_req_t *req) {
     if (!check_rate_limit()) {
-        httpd_resp_send_err(req, HTTPD_429_TOO_MANY_REQUESTS, "Rate limit exceeded");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Rate limit exceeded");
         return ESP_FAIL;
     }
 
@@ -136,13 +137,13 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
 
 static esp_err_t api_config_post_handler(httpd_req_t *req) {
     if (!check_rate_limit()) {
-        httpd_resp_send_err(req, HTTPD_429_TOO_MANY_REQUESTS, "Rate limit exceeded");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Rate limit exceeded");
         return ESP_FAIL;
     }
 
     /* Require authentication for config changes */
     if (!check_auth(req)) {
-        httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Invalid or missing token");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid or missing token");
         return ESP_FAIL;
     }
 
