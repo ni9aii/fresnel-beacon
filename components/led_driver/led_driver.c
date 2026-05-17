@@ -24,9 +24,10 @@ static rmt_channel_handle_t s_led_chan;
 static rmt_encoder_handle_t s_led_encoder;
 
 // GRB byte order as required by WS2812B
-// Double-buffer: front buffer written by set_pixel/clear, back buffer handed to RMT
-static uint8_t s_pixels_front[LED_MATRIX_LEN * 3];
-static uint8_t s_pixels_back[LED_MATRIX_LEN * 3];
+// Triple-buffer: pending (written by set_pixel), ready (swapped at flush), active (RMT DMA)
+static uint8_t s_pixels_pending[LED_MATRIX_LEN * 3];
+static uint8_t s_pixels_ready[LED_MATRIX_LEN * 3];
+static uint8_t s_pixels_active[LED_MATRIX_LEN * 3];
 
 static SemaphoreHandle_t led_mutex = NULL;
 
@@ -58,8 +59,9 @@ void led_driver_init(void) {
 
     ESP_ERROR_CHECK(led_mutex_init());
 
-    memset(s_pixels_front, 0, sizeof(s_pixels_front));
-    memset(s_pixels_back, 0, sizeof(s_pixels_back));
+    memset(s_pixels_pending, 0, sizeof(s_pixels_pending));
+    memset(s_pixels_ready, 0, sizeof(s_pixels_ready));
+    memset(s_pixels_active, 0, sizeof(s_pixels_active));
     ESP_ERROR_CHECK(led_driver_flush());
 }
 
@@ -76,9 +78,9 @@ esp_err_t led_driver_set_pixel(uint8_t index, rgb_t color) {
     }
 
     // WS2812B expects GRB, not RGB
-    s_pixels_front[index * 3 + 0] = color.g;
-    s_pixels_front[index * 3 + 1] = color.r;
-    s_pixels_front[index * 3 + 2] = color.b;
+    s_pixels_pending[index * 3 + 0] = color.g;
+    s_pixels_pending[index * 3 + 1] = color.r;
+    s_pixels_pending[index * 3 + 2] = color.b;
 
     if (led_mutex != NULL) {
         xSemaphoreGive(led_mutex);
@@ -94,7 +96,7 @@ void led_driver_clear(void) {
         }
     }
 
-    memset(s_pixels_front, 0, sizeof(s_pixels_front));
+    memset(s_pixels_pending, 0, sizeof(s_pixels_pending));
 
     if (led_mutex != NULL) {
         xSemaphoreGive(led_mutex);
@@ -102,6 +104,7 @@ void led_driver_clear(void) {
 }
 
 esp_err_t led_driver_flush(void) {
+    /* Step 1: Swap pending → ready under mutex (fast) */
     if (led_mutex != NULL) {
         if (xSemaphoreTake(led_mutex, portMAX_DELAY) != pdTRUE) {
             ESP_LOGE(TAG, "flush: mutex take failed");
@@ -109,25 +112,24 @@ esp_err_t led_driver_flush(void) {
         }
     }
 
-    // Wait for any previous transmission before writing new frame
-    // Use finite timeout (100 ms) to avoid blocking forever in simulation
-    esp_err_t ret = rmt_tx_wait_all_done(s_led_chan, pdMS_TO_TICKS(100));
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "rmt_tx_wait_all_done timeout or error: %s", esp_err_to_name(ret));
-        // Continue anyway — previous frame may have finished
-    }
-
-    // Copy front buffer to back buffer under mutex
-    memcpy(s_pixels_back, s_pixels_front, sizeof(s_pixels_front));
-
-    // Hand the stable back buffer to RMT (non-blocking DMA read) — keep mutex held
-    // until transmit is issued to prevent concurrent overwrite of s_pixels_back
-    rmt_transmit_config_t tx_cfg = {.loop_count = 0};
-    ret = rmt_transmit(s_led_chan, s_led_encoder, s_pixels_back, sizeof(s_pixels_back), &tx_cfg);
+    memcpy(s_pixels_ready, s_pixels_pending, sizeof(s_pixels_pending));
 
     if (led_mutex != NULL) {
         xSemaphoreGive(led_mutex);
     }
+
+    /* Step 2: Wait for previous RMT transmission (may block, but mutex is released) */
+    esp_err_t ret = rmt_tx_wait_all_done(s_led_chan, pdMS_TO_TICKS(100));
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "rmt_tx_wait_all_done timeout or error: %s", esp_err_to_name(ret));
+    }
+
+    /* Step 3: Copy ready → active and transmit (no mutex needed — only flush() touches active) */
+    memcpy(s_pixels_active, s_pixels_ready, sizeof(s_pixels_ready));
+
+    rmt_transmit_config_t tx_cfg = {.loop_count = 0};
+    ret =
+        rmt_transmit(s_led_chan, s_led_encoder, s_pixels_active, sizeof(s_pixels_active), &tx_cfg);
 
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "rmt_transmit failed: %s", esp_err_to_name(ret));

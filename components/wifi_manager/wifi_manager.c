@@ -6,6 +6,7 @@
 #include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
 #include <string.h>
 
 static const char *TAG = "wifi_manager";
@@ -22,6 +23,12 @@ static esp_netif_t *s_sta_netif = NULL;
 static esp_netif_t *s_ap_netif = NULL;
 
 static SemaphoreHandle_t s_wifi_status_mutex = NULL;
+
+/* Event group bits for async event handling */
+#define WIFI_EVT_GOT_IP       BIT0
+#define WIFI_EVT_DISCONNECTED BIT1
+#define WIFI_EVT_START_AP     BIT2
+static EventGroupHandle_t s_wifi_evt_group = NULL;
 
 static void update_status(wifi_manager_status_t status) {
     if (s_wifi_status_mutex == NULL) {
@@ -50,6 +57,7 @@ static void update_status(wifi_manager_status_t status) {
 
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                           void *event_data) {
+    (void) arg;
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG, "STA started, connecting...");
         update_status(WIFI_STATUS_CONNECTING);
@@ -69,9 +77,12 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
                 ESP_LOGW(TAG, "esp_wifi_connect() failed: %s", esp_err_to_name(err));
             }
         } else {
-            ESP_LOGW(TAG, "Max retries reached, falling back to AP mode");
+            ESP_LOGW(TAG, "Max retries reached, signalling AP fallback");
             update_status(WIFI_STATUS_DISCONNECTED);
-            wifi_manager_start_ap();
+            /* Signal worker task instead of calling blocking AP start from ISR context */
+            if (s_wifi_evt_group != NULL) {
+                xEventGroupSetBits(s_wifi_evt_group, WIFI_EVT_START_AP);
+            }
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
@@ -166,6 +177,9 @@ esp_err_t wifi_manager_start_ap(void) {
     return ESP_OK;
 }
 
+/* Forward declaration — worker task defined at bottom of file */
+static void wifi_manager_worker_task(void *pvParameters);
+
 esp_err_t wifi_manager_init(void) {
     ESP_LOGI(TAG, "Initialising WiFi manager");
 
@@ -173,6 +187,14 @@ esp_err_t wifi_manager_init(void) {
         s_wifi_status_mutex = xSemaphoreCreateMutex();
         if (s_wifi_status_mutex == NULL) {
             ESP_LOGE(TAG, "Failed to create wifi status mutex");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    if (s_wifi_evt_group == NULL) {
+        s_wifi_evt_group = xEventGroupCreate();
+        if (s_wifi_evt_group == NULL) {
+            ESP_LOGE(TAG, "Failed to create wifi event group");
             return ESP_ERR_NO_MEM;
         }
     }
@@ -186,6 +208,14 @@ esp_err_t wifi_manager_init(void) {
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
     ESP_ERROR_CHECK(
         esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+
+    /* Create worker task for async AP fallback (prevents blocking in event handler) */
+    BaseType_t task_created =
+        xTaskCreate(wifi_manager_worker_task, "wifi_worker", 4096, NULL, 4, NULL);
+    if (task_created != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create WiFi worker task");
+        return ESP_ERR_NO_MEM;
+    }
 
     runtime_config_t cfg_rt;
     esp_err_t err = config_manager_get(&cfg_rt);
@@ -247,8 +277,6 @@ wifi_manager_status_t wifi_manager_get_status(void) {
     return status;
 }
 
-static char s_ip_str_local[16] = "0.0.0.0";
-
 esp_err_t wifi_manager_get_ip(char *buf, size_t len) {
     if (buf == NULL || len < 16) {
         return ESP_ERR_INVALID_ARG;
@@ -261,4 +289,24 @@ esp_err_t wifi_manager_get_ip(char *buf, size_t len) {
         strlcpy(buf, "0.0.0.0", len);
     }
     return ESP_OK;
+}
+
+static void wifi_manager_worker_task(void *pvParameters) {
+    (void) pvParameters;
+    ESP_LOGI(TAG, "WiFi worker task started");
+
+    while (1) {
+        EventBits_t bits =
+            xEventGroupWaitBits(s_wifi_evt_group, WIFI_EVT_START_AP, pdTRUE, /* clear on exit */
+                                pdFALSE,                                     /* wait for any bit */
+                                portMAX_DELAY);
+
+        if (bits & WIFI_EVT_START_AP) {
+            ESP_LOGI(TAG, "Worker: starting AP fallback");
+            esp_err_t err = wifi_manager_start_ap();
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "AP fallback failed: %s", esp_err_to_name(err));
+            }
+        }
+    }
 }
