@@ -18,16 +18,21 @@ extern "C" {
 // clang-format on
 
 /**
- * @brief Runtime configuration structure.
+ * @brief WiFi credentials stored in NVS (separate from animation config).
+ */
+typedef struct {
+    char ssid[32];
+    char pass[64];
+} wifi_credentials_t;
+
+/**
+ * @brief Runtime configuration structure (animation settings only).
  */
 typedef struct {
     float speed_rpm;    // beacon rotation speed (RPM)
     int32_t mode;       // animation mode identifier
     float brightness;   // global brightness factor 0.0..1.0
     uint32_t color_rgb; // beam color as 0xRRGGBB
-    /* Wi-Fi credentials stored in NVS but NOT exposed via IPC (security) */
-    char wifi_ssid[32];
-    char wifi_pass[64];
 } runtime_config_t;
 
 /**
@@ -73,6 +78,34 @@ esp_err_t config_manager_load_from_nvs(void);
  * @return ESP_OK on success, or warning-level error if NVS unavailable.
  */
 esp_err_t config_manager_save_to_nvs(void);
+
+/**
+ * @brief Trigger async NVS save via background task.
+ *
+ * Enqueues save request and returns immediately. HTTP handlers
+ * should call this instead of the synchronous version to avoid
+ * blocking the HTTP worker thread.
+ *
+ * @return ESP_OK if save request enqueued, ESP_ERR_NO_MEM if queue full.
+ */
+esp_err_t config_manager_save_to_nvs_async(void);
+
+/* WiFi credential management (separate from animation config) */
+
+/**
+ * @brief Get WiFi credentials (mutex-protected).
+ */
+esp_err_t config_manager_get_wifi_credentials(wifi_credentials_t *out_cred);
+
+/**
+ * @brief Set WiFi credentials (mutex-protected).
+ */
+esp_err_t config_manager_set_wifi_credentials(const wifi_credentials_t *in_cred);
+
+/**
+ * @brief Save WiFi credentials to NVS (async, via background task).
+ */
+esp_err_t config_manager_save_wifi_credentials_async(void);
 
 #ifdef __cplusplus
 }

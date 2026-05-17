@@ -217,16 +217,16 @@ esp_err_t wifi_manager_init(void) {
         return ESP_ERR_NO_MEM;
     }
 
-    runtime_config_t cfg_rt;
-    esp_err_t err = config_manager_get(&cfg_rt);
+    wifi_credentials_t wifi_cred;
+    esp_err_t err = config_manager_get_wifi_credentials(&wifi_cred);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to read config: %s", esp_err_to_name(err));
-        cfg_rt.wifi_ssid[0] = '\0';
-        cfg_rt.wifi_pass[0] = '\0';
+        ESP_LOGW(TAG, "Failed to read WiFi credentials: %s", esp_err_to_name(err));
+        wifi_cred.ssid[0] = '\0';
+        wifi_cred.pass[0] = '\0';
     }
 
     /* No credentials → skip STA entirely, go straight to AP mode */
-    if (cfg_rt.wifi_ssid[0] == '\0') {
+    if (wifi_cred.ssid[0] == '\0') {
         ESP_LOGW(TAG, "No WiFi credentials configured, starting AP mode");
         return wifi_manager_start_ap();
     }
@@ -238,9 +238,9 @@ esp_err_t wifi_manager_init(void) {
     }
 
     wifi_config_t wifi_config = {0};
-    strlcpy((char *) wifi_config.sta.ssid, cfg_rt.wifi_ssid, sizeof(wifi_config.sta.ssid));
-    if (cfg_rt.wifi_pass[0] != '\0') {
-        strlcpy((char *) wifi_config.sta.password, cfg_rt.wifi_pass,
+    strlcpy((char *) wifi_config.sta.ssid, wifi_cred.ssid, sizeof(wifi_config.sta.ssid));
+    if (wifi_cred.pass[0] != '\0') {
+        strlcpy((char *) wifi_config.sta.password, wifi_cred.pass,
                 sizeof(wifi_config.sta.password));
     }
     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;

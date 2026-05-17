@@ -3,6 +3,7 @@
 
 #ifdef ESP_PLATFORM
 #include "led_driver.h"
+#include "esp_log.h"
 #endif
 
 /* ---- public dispatch wrappers ---- */
@@ -114,7 +115,10 @@ static void led_renderer_set_pixel(renderer_t *self, uint8_t index, rgb_t color)
         self->fb.pixels[index * 3 + 1] = color.r;
         self->fb.pixels[index * 3 + 2] = color.b;
     }
-    (void) led_driver_set_pixel(index, color);
+    esp_err_t err = led_driver_set_pixel(index, color);
+    if (err != ESP_OK) {
+        ESP_LOGW("renderer", "led_driver_set_pixel(%u) failed: %s", index, esp_err_to_name(err));
+    }
 }
 
 static esp_err_t led_renderer_flush(renderer_t *self) {

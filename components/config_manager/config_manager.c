@@ -1,5 +1,7 @@
 #include "config_manager.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "nvs_flash.h"
@@ -9,7 +11,14 @@
 static const char *TAG = "config_manager";
 
 static runtime_config_t s_config;
+static wifi_credentials_t s_wifi_cred;
 static SemaphoreHandle_t s_config_mutex = NULL;
+
+/* Async NVS save queue */
+static QueueHandle_t s_nvs_save_queue = NULL;
+static TaskHandle_t s_nvs_save_task = NULL;
+
+#define NVS_SAVE_QUEUE_LEN 4
 
 /* Defaults */
 #define DEFAULT_SPEED_RPM  8.0f
@@ -18,6 +27,44 @@ static SemaphoreHandle_t s_config_mutex = NULL;
 #define DEFAULT_COLOR_RGB  0xFFA028 /* warm amber */
 
 #define NVS_NAMESPACE "fresnel"
+
+static void nvs_save_task(void *pvParameters) {
+    (void) pvParameters;
+    ESP_LOGI(TAG, "NVS save task started");
+
+    while (1) {
+        uint32_t signal;
+        if (xQueueReceive(s_nvs_save_queue, &signal, portMAX_DELAY) == pdTRUE) {
+            ESP_LOGI(TAG, "Async NVS save triggered");
+            esp_err_t err = config_manager_save_to_nvs();
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Async NVS save failed: %s", esp_err_to_name(err));
+            } else {
+                ESP_LOGI(TAG, "Async NVS save completed");
+            }
+        }
+    }
+}
+
+static esp_err_t config_manager_start_nvs_task(void) {
+    if (s_nvs_save_queue == NULL) {
+        s_nvs_save_queue = xQueueCreate(NVS_SAVE_QUEUE_LEN, sizeof(uint32_t));
+        if (s_nvs_save_queue == NULL) {
+            ESP_LOGE(TAG, "Failed to create NVS save queue");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    if (s_nvs_save_task == NULL) {
+        BaseType_t created =
+            xTaskCreate(nvs_save_task, "nvs_save", 4096, NULL, 3, &s_nvs_save_task);
+        if (created != pdPASS) {
+            ESP_LOGE(TAG, "Failed to create NVS save task");
+            return ESP_ERR_NO_MEM;
+        }
+    }
+    return ESP_OK;
+}
 
 esp_err_t config_manager_init(void) {
     if (s_config_mutex == NULL) {
@@ -32,8 +79,11 @@ esp_err_t config_manager_init(void) {
     s_config.mode = DEFAULT_MODE;
     s_config.brightness = DEFAULT_BRIGHTNESS;
     s_config.color_rgb = DEFAULT_COLOR_RGB;
-    s_config.wifi_ssid[0] = '\0';
-    s_config.wifi_pass[0] = '\0';
+
+    s_wifi_cred.ssid[0] = '\0';
+    s_wifi_cred.pass[0] = '\0';
+
+    ESP_ERROR_CHECK(config_manager_start_nvs_task());
 
     ESP_LOGI(TAG, "Runtime config initialized (speed=%.1f rpm, brightness=%.2f, color=0x%06X)",
              s_config.speed_rpm, s_config.brightness, (unsigned int) s_config.color_rgb);
@@ -213,19 +263,19 @@ esp_err_t config_manager_load_from_nvs(void) {
     s_config.color_rgb = ((uint32_t) r << 16) | ((uint32_t) g << 8) | (uint32_t) b;
 
     /* wifi_ssid (string, max 31 chars + null) */
-    size_t ssid_len = sizeof(s_config.wifi_ssid);
-    err = nvs_get_str(handle, "wifi_ssid", s_config.wifi_ssid, &ssid_len);
+    size_t ssid_len = sizeof(s_wifi_cred.ssid);
+    err = nvs_get_str(handle, "wifi_ssid", s_wifi_cred.ssid, &ssid_len);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS key wifi_ssid missing or truncated");
-        s_config.wifi_ssid[0] = '\0';
+        s_wifi_cred.ssid[0] = '\0';
     }
 
     /* wifi_pass (string, max 63 chars + null) */
-    size_t pass_len = sizeof(s_config.wifi_pass);
-    err = nvs_get_str(handle, "wifi_pass", s_config.wifi_pass, &pass_len);
+    size_t pass_len = sizeof(s_wifi_cred.pass);
+    err = nvs_get_str(handle, "wifi_pass", s_wifi_cred.pass, &pass_len);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS key wifi_pass missing or truncated");
-        s_config.wifi_pass[0] = '\0';
+        s_wifi_cred.pass[0] = '\0';
     }
 
     nvs_close(handle);
@@ -293,11 +343,11 @@ esp_err_t config_manager_save_to_nvs(void) {
     }
 
     /* wifi credentials */
-    err = nvs_set_str(handle, "wifi_ssid", s_config.wifi_ssid);
+    err = nvs_set_str(handle, "wifi_ssid", s_wifi_cred.ssid);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS set wifi_ssid failed: %s", esp_err_to_name(err));
     }
-    err = nvs_set_str(handle, "wifi_pass", s_config.wifi_pass);
+    err = nvs_set_str(handle, "wifi_pass", s_wifi_cred.pass);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "NVS set wifi_pass failed: %s", esp_err_to_name(err));
     }
@@ -314,5 +364,67 @@ esp_err_t config_manager_save_to_nvs(void) {
     xSemaphoreGive(s_config_mutex);
 
     ESP_LOGI(TAG, "Config saved to NVS");
+    return ESP_OK;
+}
+
+esp_err_t config_manager_save_to_nvs_async(void) {
+    if (s_nvs_save_queue == NULL) {
+        ESP_LOGE(TAG, "NVS save queue not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    uint32_t signal = 1;
+    BaseType_t sent = xQueueSend(s_nvs_save_queue, &signal, pdMS_TO_TICKS(100));
+    if (sent != pdTRUE) {
+        ESP_LOGW(TAG, "NVS save queue full, save request dropped");
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
+/* WiFi credential management (separate from animation config) */
+
+esp_err_t config_manager_get_wifi_credentials(wifi_credentials_t *out_cred) {
+    if (out_cred == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_config_mutex == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+    *out_cred = s_wifi_cred;
+    xSemaphoreGive(s_config_mutex);
+    return ESP_OK;
+}
+
+esp_err_t config_manager_set_wifi_credentials(const wifi_credentials_t *in_cred) {
+    if (in_cred == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_config_mutex == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+    s_wifi_cred = *in_cred;
+    xSemaphoreGive(s_config_mutex);
+    return ESP_OK;
+}
+
+esp_err_t config_manager_save_wifi_credentials_async(void) {
+    if (s_nvs_save_queue == NULL) {
+        ESP_LOGE(TAG, "NVS save queue not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    uint32_t signal = 1;
+    BaseType_t sent = xQueueSend(s_nvs_save_queue, &signal, pdMS_TO_TICKS(100));
+    if (sent != pdTRUE) {
+        ESP_LOGW(TAG, "NVS save queue full, save request dropped");
+        return ESP_ERR_NO_MEM;
+    }
     return ESP_OK;
 }

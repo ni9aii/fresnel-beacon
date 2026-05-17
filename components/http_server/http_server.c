@@ -328,12 +328,11 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    /* Save to NVS after commit acknowledged */
-    esp_err_t err = config_manager_save_to_nvs();
+    /* Save to NVS after commit acknowledged (async, non-blocking) */
+    esp_err_t err = config_manager_save_to_nvs_async();
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "NVS save failed: %s", esp_err_to_name(err));
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "internal error");
-        return ESP_FAIL;
+        ESP_LOGW(TAG, "NVS async save failed: %s", esp_err_to_name(err));
+        /* Don't fail the request — save is best-effort */
     }
 
     httpd_resp_set_type(req, "application/json");
