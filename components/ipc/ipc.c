@@ -18,12 +18,12 @@ esp_err_t ipc_init(void) {
     }
 
     if (ipc_commit_sem == NULL) {
-        ipc_commit_sem = xSemaphoreCreateBinary();
+        ipc_commit_sem = xSemaphoreCreateCounting(32, 0);
         if (ipc_commit_sem == NULL) {
             ESP_LOGE(TAG, "Failed to create IPC commit semaphore");
             return ESP_ERR_NO_MEM;
         }
-        ESP_LOGI(TAG, "IPC commit semaphore created");
+        ESP_LOGI(TAG, "IPC commit counting semaphore created");
     }
 
     return ESP_OK;

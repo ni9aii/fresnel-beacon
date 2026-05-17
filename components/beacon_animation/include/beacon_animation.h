@@ -7,12 +7,6 @@
 extern "C" {
 #endif
 
-/**
- * @brief Global beacon rotation speed (seconds per full rotation).
- * Write via config_manager or IPC; read-only here for animation loop.
- */
-extern float g_beacon_speed;
-
 typedef struct {
     renderer_t *renderer;
 } animation_config_t;

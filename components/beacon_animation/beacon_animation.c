@@ -18,13 +18,6 @@
 // Beam trail: how many radians behind the leading edge stay lit
 #define TRAIL_RADIANS (M_PI / 2.5f)
 
-/**
- * @brief Global beacon rotation speed (seconds per full rotation).
- * Used by Web UI / status API for human-readable units.
- * Internal logic still uses speed_rpm (RPM) for animation.
- */
-float g_beacon_speed = BEACON_SPEED_DEFAULT_SEC;
-
 static inline rgb_t unpack_rgb(uint32_t rgb) {
     return (rgb_t){
         .r = (uint8_t) ((rgb >> 16) & 0xFF),
@@ -58,13 +51,8 @@ static void process_ipc_commands(void) {
         switch (cmd.type) {
         case IPC_CMD_SET_SPEED:
             config_manager_set_speed(cmd.data.speed_rpm);
-            // Update g_beacon_speed for Web UI
-            g_beacon_speed = rpm_to_sec_per_rotation(cmd.data.speed_rpm);
-            if (g_beacon_speed < BEACON_SPEED_MIN_SEC)
-                g_beacon_speed = BEACON_SPEED_MIN_SEC;
-            if (g_beacon_speed > BEACON_SPEED_MAX_SEC)
-                g_beacon_speed = BEACON_SPEED_MAX_SEC;
-            ESP_LOGI("beacon", "Speed updated: %.2f sec/rotation", g_beacon_speed);
+            ESP_LOGI("beacon", "Speed updated: %.2f sec/rotation",
+                     rpm_to_sec_per_rotation(cmd.data.speed_rpm));
             break;
         case IPC_CMD_SET_COLOR:
             config_manager_set_color(cmd.data.color_rgb);
@@ -89,17 +77,15 @@ static void process_ipc_commands(void) {
 
 esp_err_t beacon_animation_init(void) {
     runtime_config_t cfg = CONFIG_MANAGER_DEFAULTS();
-    if (config_manager_get(&cfg) != ESP_OK) {
-        g_beacon_speed = BEACON_SPEED_DEFAULT_SEC;
-    } else {
-        g_beacon_speed = rpm_to_sec_per_rotation(cfg.speed_rpm);
-        // Clamp to valid range
-        if (g_beacon_speed < BEACON_SPEED_MIN_SEC)
-            g_beacon_speed = BEACON_SPEED_MIN_SEC;
-        if (g_beacon_speed > BEACON_SPEED_MAX_SEC)
-            g_beacon_speed = BEACON_SPEED_MAX_SEC;
+    float speed_sec = BEACON_SPEED_DEFAULT_SEC;
+    if (config_manager_get(&cfg) == ESP_OK) {
+        speed_sec = rpm_to_sec_per_rotation(cfg.speed_rpm);
+        if (speed_sec < BEACON_SPEED_MIN_SEC)
+            speed_sec = BEACON_SPEED_MIN_SEC;
+        if (speed_sec > BEACON_SPEED_MAX_SEC)
+            speed_sec = BEACON_SPEED_MAX_SEC;
     }
-    ESP_LOGI("beacon", "Beacon speed initialized: %.2f sec/rotation", g_beacon_speed);
+    ESP_LOGI("beacon", "Beacon speed initialized: %.2f sec/rotation", speed_sec);
     return ESP_OK;
 }
 

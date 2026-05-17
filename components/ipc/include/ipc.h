@@ -40,8 +40,9 @@ typedef struct {
 extern QueueHandle_t ipc_queue;
 
 /**
- * @brief Binary semaphore used to signal that IPC_CMD_COMMIT has been
+ * @brief Counting semaphore used to signal that IPC_CMD_COMMIT has been
  *        processed by the animation task.
+ *        Using counting semaphore prevents lost signals and spurious wakeups.
  */
 extern SemaphoreHandle_t ipc_commit_sem;
 
