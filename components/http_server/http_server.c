@@ -9,6 +9,7 @@
 #include "esp_http_server.h"
 #include "esp_wifi.h"
 #include "esp_random.h"
+#include "cJSON.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,7 +66,9 @@ static bool check_rate_limit(void) {
         s_request_count = 0;
         s_last_reset_ticks = now;
     }
-    if (s_request_count++ > 30) {
+    /* Atomic increment to prevent data race across httpd worker tasks */
+    uint32_t count = __atomic_fetch_add(&s_request_count, 1, __ATOMIC_RELAXED);
+    if (count > 30) {
         return false;
     }
     return true;
@@ -108,28 +111,38 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    char json[512];
     float speed_sec;
     config_manager_get_speed_sec(&speed_sec);
-    snprintf(json, sizeof(json),
-             "{"
-             "\"status\":\"ok\","
-             "\"wifi\":\"%s\","
-             "\"ip\":\"%s\","
-             "\"rssi\":%d,"
-             "\"beacon\":{"
-             "\"speed_rpm\":%.1f,"
-             "\"speed_sec\":%.2f,"
-             "\"mode\":%ld,"
-             "\"brightness\":%.2f,"
-             "\"color\":\"0x%06X\""
-             "}"
-             "}",
-             status_str(), wifi_manager_get_ip(), get_rssi(), cfg.speed_rpm, speed_sec,
-             (long) cfg.mode, cfg.brightness, (unsigned int) cfg.color_rgb);
+
+    /* Build JSON response dynamically with cJSON to avoid stack buffer overflow */
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "status", "ok");
+    cJSON_AddStringToObject(root, "wifi", status_str());
+    cJSON_AddStringToObject(root, "ip", wifi_manager_get_ip());
+    cJSON_AddNumberToObject(root, "rssi", get_rssi());
+
+    cJSON *beacon = cJSON_CreateObject();
+    cJSON_AddNumberToObject(beacon, "speed_rpm", cfg.speed_rpm);
+    cJSON_AddNumberToObject(beacon, "speed_sec", speed_sec);
+    cJSON_AddNumberToObject(beacon, "mode", cfg.mode);
+    cJSON_AddNumberToObject(beacon, "brightness", cfg.brightness);
+
+    char color_str[16];
+    snprintf(color_str, sizeof(color_str), "0x%06X", (unsigned int) cfg.color_rgb);
+    cJSON_AddStringToObject(beacon, "color", color_str);
+
+    cJSON_AddItemToObject(root, "beacon", beacon);
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON encode error");
+        return ESP_FAIL;
+    }
 
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json, HTTPD_RESP_USE_STRLEN);
+    free(json);
     return ESP_OK;
 }
 
@@ -179,45 +192,41 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     }
     buf[received] = '\0';
 
-    /* Simple JSON parser: scan for known keys using sscanf */
+    /* Parse JSON using cJSON */
+    cJSON *root = cJSON_Parse(buf);
+    free(buf);
+    if (root == NULL) {
+        ESP_LOGW(TAG, "JSON parse error");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
+        return ESP_FAIL;
+    }
+
     float speed_rpm = -1.0f;
     float speed_sec = -1.0f;
     float brightness = -1.0f;
     int32_t mode = -1;
     unsigned int color = 0xFFFFFFFF;
 
-    char *key_ptr = NULL;
-
-    key_ptr = strstr(buf, "\"speed_rpm\"");
-    if (key_ptr != NULL) {
-        if (sscanf(key_ptr, "\"speed_rpm\":%31f", &speed_rpm) != 1) {
-            speed_rpm = -1.0f; /* keep sentinel if parse failed */
-        }
+    cJSON *item = cJSON_GetObjectItem(root, "speed_rpm");
+    if (item != NULL && cJSON_IsNumber(item)) {
+        speed_rpm = (float) item->valuedouble;
     }
-    key_ptr = strstr(buf, "\"speed_sec\"");
-    if (key_ptr != NULL) {
-        if (sscanf(key_ptr, "\"speed_sec\":%31f", &speed_sec) != 1) {
-            speed_sec = -1.0f;
-        }
+    item = cJSON_GetObjectItem(root, "speed_sec");
+    if (item != NULL && cJSON_IsNumber(item)) {
+        speed_sec = (float) item->valuedouble;
     }
-    key_ptr = strstr(buf, "\"brightness\"");
-    if (key_ptr != NULL) {
-        if (sscanf(key_ptr, "\"brightness\":%31f", &brightness) != 1) {
-            brightness = -1.0f;
-        }
+    item = cJSON_GetObjectItem(root, "brightness");
+    if (item != NULL && cJSON_IsNumber(item)) {
+        brightness = (float) item->valuedouble;
     }
-    key_ptr = strstr(buf, "\"mode\"");
-    if (key_ptr != NULL) {
-        long mode_l = -1;
-        if (sscanf(key_ptr, "\"mode\":%31ld", &mode_l) == 1) {
-            mode = (int32_t) mode_l;
-        }
+    item = cJSON_GetObjectItem(root, "mode");
+    if (item != NULL && cJSON_IsNumber(item)) {
+        mode = (int32_t) item->valueint;
     }
-    key_ptr = strstr(buf, "\"color\"");
-    if (key_ptr != NULL) {
-        /* Try hex string form first: "0xFFA028" or "#FFA028" */
-        char hex_str[16] = {0};
-        if (sscanf(key_ptr, "\"color\":\"%15[^\"]\"", hex_str) == 1) {
+    item = cJSON_GetObjectItem(root, "color");
+    if (item != NULL) {
+        if (cJSON_IsString(item)) {
+            const char *hex_str = item->valuestring;
             char *endptr = NULL;
             unsigned long val = 0;
             errno = 0;
@@ -235,20 +244,17 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
             } else {
                 color = (unsigned int) val;
             }
-        } else {
-            /* Try numeric form */
-            unsigned int color_tmp = 0xFFFFFFFF;
-            if (sscanf(key_ptr, "\"color\":%u", &color_tmp) == 1) {
-                if (color_tmp <= 0xFFFFFF) {
-                    color = color_tmp;
-                } else {
-                    ESP_LOGW(TAG, "Color out of range: %u", color_tmp);
-                }
+        } else if (cJSON_IsNumber(item)) {
+            unsigned int color_tmp = (unsigned int) item->valueint;
+            if (color_tmp <= 0xFFFFFF) {
+                color = color_tmp;
+            } else {
+                ESP_LOGW(TAG, "Color out of range: %u", color_tmp);
             }
         }
     }
 
-    free(buf);
+    cJSON_Delete(root);
 
     /* Validate and apply */
     if (speed_sec >= 0.0f) {
