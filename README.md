@@ -33,10 +33,9 @@ A real lighthouse rotates its optics around a fixed light source. This project i
   - NVS persistent storage (speed, mode, brightness, color)
   - WiFi STA + AP fallback (AP password derived from MAC)
   - HTTP server with embedded Web UI
-- [ ] Configurable rotation speed
+- [x] Configurable rotation speed (0.5-20 sec per rotation)
 - [ ] Multiple light modes (strobe, ambient)
 - [ ] Brightness control
-- [ ] Web UI over WiFi for runtime configuration
 
 ## Firmware Architecture
 

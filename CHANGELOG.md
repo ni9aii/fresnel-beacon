@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Configurable rotation speed (0.5-20 seconds per rotation) — HTTP API endpoint `/api/config` now accepts `speed_sec` parameter, Web UI updated with range slider.
+
+### Fixed
+
+- [CRITICAL] Use-after-free in `led_driver_deinit()` — mutex deletion now occurs BEFORE `led_driver_clear()` call.
+- [IMPORTANT] HTTP JSON parser — added width limits (`%31f`, `%31ld`) to `sscanf` calls for security.
+- [IMPORTANT] HTTP mode validation — added sentinel check to reject `-1` parse failure value.
+- [IMPORTANT] HTTP color overflow — reordered validation checks (parse errors before range check).
+- [IMPORTANT] AP password entropy — now uses full MAC address (6 bytes) instead of last 2 bytes.
+- [IMPORTANT] HTTP server SSN protection — added `httpd_sess_set_ctx()` context binding.
+- [MINOR] CI format check — changed from `|| true` to `--Werror` for stricter enforcement.
+- [MINOR] CI caching — added `sdkconfig.defaults` and `CMakeLists.txt` hash for cache invalidation.
+- [MINOR] CI clang-format — enabled `--Werror` flag for fail-fast formatting violations.
+
+### Security
+
+- Added `CONFIG_MANAGER_DEFAULTS()` compile-time validation with `_Static_assert` for AP password buffer size.
+- Temporarily disabled NVS encryption in `sdkconfig.defaults` for CI builds (no eFuse keys in simulation).
+
 ## [0.2.0] — 2026-05-10
 
 ### Added
