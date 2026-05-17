@@ -28,7 +28,7 @@ static rmt_encoder_handle_t s_led_encoder;
 static uint8_t s_pixels_front[LED_MATRIX_LEN * 3];
 static uint8_t s_pixels_back[LED_MATRIX_LEN * 3];
 
-SemaphoreHandle_t led_mutex = NULL;
+static SemaphoreHandle_t led_mutex = NULL;
 
 static esp_err_t led_mutex_init(void) {
     if (led_mutex == NULL) {

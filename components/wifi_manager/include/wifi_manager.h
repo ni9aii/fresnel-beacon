@@ -34,9 +34,11 @@ wifi_manager_status_t wifi_manager_get_status(void);
 /**
  * @brief Get current IP address as a string.
  *
- * @return Static buffer containing IP string ("0.0.0.0" if unavailable).
+ * @param buf  Buffer to store IP string.
+ * @param len  Buffer size (must be >= 16).
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if buf is NULL or too small.
  */
-const char *wifi_manager_get_ip(void);
+esp_err_t wifi_manager_get_ip(char *buf, size_t len);
 
 /**
  * @brief Start AP mode with SSID "Fresnel-Beacon-XXXX" (last 4 hex of MAC).

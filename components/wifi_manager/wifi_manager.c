@@ -249,11 +249,16 @@ wifi_manager_status_t wifi_manager_get_status(void) {
 
 static char s_ip_str_local[16] = "0.0.0.0";
 
-const char *wifi_manager_get_ip(void) {
+esp_err_t wifi_manager_get_ip(char *buf, size_t len) {
+    if (buf == NULL || len < 16) {
+        return ESP_ERR_INVALID_ARG;
+    }
     if (s_wifi_status_mutex != NULL) {
         xSemaphoreTake(s_wifi_status_mutex, portMAX_DELAY);
-        strlcpy(s_ip_str_local, s_ip_str, sizeof(s_ip_str_local));
+        strlcpy(buf, s_ip_str, len);
         xSemaphoreGive(s_wifi_status_mutex);
+    } else {
+        strlcpy(buf, "0.0.0.0", len);
     }
-    return s_ip_str_local;
+    return ESP_OK;
 }

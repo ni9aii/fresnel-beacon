@@ -118,7 +118,9 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "status", "ok");
     cJSON_AddStringToObject(root, "wifi", status_str());
-    cJSON_AddStringToObject(root, "ip", wifi_manager_get_ip());
+    char ip_str[16] = "0.0.0.0";
+    wifi_manager_get_ip(ip_str, sizeof(ip_str));
+    cJSON_AddStringToObject(root, "ip", ip_str);
     cJSON_AddNumberToObject(root, "rssi", get_rssi());
 
     cJSON *beacon = cJSON_CreateObject();
