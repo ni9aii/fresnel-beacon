@@ -11,8 +11,8 @@ extern "C" {
 /**
  * @brief Default runtime configuration values.
  */
-#define CONFIG_MANAGER_DEFAULTS()                        \
-    (runtime_config_t){                                 \
+#define CONFIG_MANAGER_DEFAULTS() \
+    (runtime_config_t){          \
         .speed_rpm = 8.0f, .mode = 0, .brightness = 1.0f, .color_rgb = 0xFFA028}
 
 /**
