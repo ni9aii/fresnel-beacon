@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-18
+
+### Added
+
+- **Async NVS persistence** — Background task (`nvs_save_task`) with queue-based async save, HTTP handlers now non-blocking.
+- **WiFi credential isolation** — Separate `wifi_credentials_t` struct with dedicated API (`config_manager_get/set_wifi_credentials()`).
+- **Production configuration** — `sdkconfig.defaults.production` with WDT panic enabled and NVS encryption ready.
+- **Renderer error logging** — `led_renderer_set_pixel()` now logs `ESP_LOGW()` on LED driver failures.
+- **DevOps hardening** — Semgrep hard failure, cache invalidation, release tag guards.
+
+### Fixed
+
+- **[CRITICAL]** Global state race (`g_beacon_speed`) — Removed global, animation task now uses `config_manager_get_speed_sec()`.
+- **[CRITICAL]** LED driver mutex hold during DMA — Triple-buffering (pending/ready/active), mutex hold reduced from ~100ms to ~0.1ms.
+- **[CRITICAL]** Stack overflow in animation task — Stack size increased from 4096 to 8192 bytes.
+- **[CRITICAL]** WiFi event handler ISR safety — AP fallback moved to EventGroup + worker task (no blocking in ISR).
+- **[IMPORTANT]** IPC semaphore type — Changed from binary to counting semaphore (depth 32).
+- **[IMPORTANT]** HTTP server rate limiter race — Atomic operations (`__atomic_fetch_add()`) for thread-safe counting.
+- **[IMPORTANT]** HTTP JSON parser — Replaced hand-rolled `sscanf`/`strstr` with cJSON (ESP-IDF built-in).
+- **[IMPORTANT]** Stack buffer overflow risk — Dynamic JSON allocation via `cJSON_PrintUnformatted()` instead of fixed stack buffer.
+- **[IMPORTANT]** Encapsulation violations — `led_mutex` made static, `wifi_manager_get_ip()` now uses caller-provided buffer.
+- **[IMPORTANT]** NVS write blocks HTTP handler — Async save via `config_manager_save_to_nvs_async()`.
+- **[IMPORTANT]** WiFi credentials in plaintext RAM — Separate `wifi_credentials_t` struct with protected API.
+- **[MINOR]** Missing watchdog reset — Added `esp_task_wdt_reset()` in animation loop.
+- **[MINOR]** CI semgrep non-blocking — Removed `|| true`, now fails on ERROR severity.
+- **[MINOR]** CI cache stale — Added `**/CMakeLists.txt` to hashFiles key.
+- **[MINOR]** CI release misuse — Guard added: `if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')`.
+- **[MINOR]** WDT panic disabled — Enabled in `sdkconfig.defaults.production`.
+
+### Security
+
+- WiFi credentials isolated from animation config in separate struct with mutex-protected API.
+- Rate limiter now uses atomic operations for thread-safe counting across HTTPD worker tasks.
+- cJSON parser replaces fragile hand-rolled JSON parsing with proper error handling.
+- Dynamic JSON allocation prevents stack buffer overflows.
+- Production config enables watchdog panic and NVS encryption.
+
+### Performance
+
+- LED driver mutex hold time reduced by 99.9% (100ms → 0.1ms) via triple-buffering.
+- HTTP handlers now non-blocking (async NVS save).
+
+### Architecture
+
+- Improved component encapsulation (led_mutex static).
+- Cleaner API surface (WiFi credentials separate from runtime config).
+- Better ISR safety (EventGroup + worker task pattern).
+
+## [0.2.0] — 2026-05-10
+
 ### Added
 
 - Configurable rotation speed (0.5-20 seconds per rotation) — HTTP API endpoint `/api/config` now accepts `speed_sec` parameter, Web UI updated with range slider.
@@ -28,29 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `CONFIG_MANAGER_DEFAULTS()` compile-time validation with `_Static_assert` for AP password buffer size.
 - Temporarily disabled NVS encryption in `sdkconfig.defaults` for CI builds (no eFuse keys in simulation).
 
-## [0.2.0] — 2026-05-10
-
-### Added
-
-- **IPC queue** (`components/ipc/`) — thread-safe inter-process communication for config updates between HTTP server and animation task.
-- **Config manager** (`components/config_manager/`) — runtime configuration with NVS persistence. Supports speed, mode, brightness, color.
-- **WiFi manager** (`components/wifi_manager/`) — STA mode with AP fallback. AP SSID includes MAC suffix; password derived from MAC address (printed on boot).
-- **HTTP server + Web UI** (`components/http_server/`) — REST API (`GET /api/status`, `POST /api/config`) with embedded HTML/JS control panel.
-- **Host unit tests** for `test_led_driver.c` (requires `-lm` for `roundf`).
-- **ESP-IDF Unity tests** — `test_config_manager.c`, `test_ipc.c`, `test_esp_http_server.c`, `test_esp_led_driver.c`, `test_esp_wifi_manager.c`.
-- **`.clang-format`** — LLVM-based style config (4-space indent, 100 column limit).
-- **Formatting check** in CI (non-blocking, `|| true`).
-
-### Changed
-
-- `app_main` architecture — now initializes config_manager, wifi_manager, http_server before spawning animation task.
-- `beacon_animation_task` — per-frame `process_ipc_commands()` call to apply queued config updates.
-- CI `build-and-simulate` timeout increased from 30s to 120s for Wokwi simulation.
-
-### Fixed
-
-- CI action pinning reverted from SHA hashes to tag-based references (`actions/cache@v4.2.0`, `espressif/esp-idf-ci-action@v1.1.0`) to resolve "Set up job" failures.
-
 ## [0.1.0] — 2026-05-09
 
 ### Added
@@ -63,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task watchdog (`esp_task_wdt`) and stack high-water mark logging.
 - Wokwi simulation setup (`diagram.json`, `wokwi.toml`, `scenario.yaml`).
 
-[Unreleased]: https://github.com/ni9aii/fresnel-beacon/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ni9aii/fresnel-beacon/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ni9aii/fresnel-beacon/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ni9aii/fresnel-beacon/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ni9aii/fresnel-beacon/releases/tag/v0.1.0
