@@ -19,8 +19,8 @@
 #define TRAIL_RADIANS (M_PI / 2.5f)
 
 // Strobe timing
-#define STROBE_ON_MS  50   // 50ms on
-#define STROBE_OFF_MS 100  // 100ms off (200ms period)
+#define STROBE_ON_MS  50  // 50ms on
+#define STROBE_OFF_MS 100 // 100ms off (200ms period)
 
 static inline rgb_t unpack_rgb(uint32_t rgb) {
     return (rgb_t){
@@ -84,8 +84,7 @@ static void process_ipc_commands(void) {
 /**
  * @brief Render BEACON mode: rotating beacon with trail.
  */
-static void render_beacon_mode(renderer_t *renderer, float angle,
-                                const runtime_config_t *cfg) {
+static void render_beacon_mode(renderer_t *renderer, float angle, const runtime_config_t *cfg) {
     const float cx = (LED_MATRIX_COLS - 1) / 2.0f;
     const float cy = (LED_MATRIX_ROWS - 1) / 2.0f;
     rgb_t beam_color = unpack_rgb(cfg->color_rgb);
