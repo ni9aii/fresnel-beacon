@@ -1,4 +1,5 @@
 #include "config_manager.h"
+#include "beacon_animation/beacon_animation.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -176,6 +177,12 @@ esp_err_t config_manager_set_mode(int32_t mode) {
     if (s_config_mutex == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
+
+    if (mode < 0 || mode >= ANIM_MODE_COUNT) {
+        ESP_LOGW(TAG, "Invalid mode %ld, clamping to 0 (BEACON)", (long) mode);
+        mode = 0;
+    }
+
     if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
         return ESP_ERR_TIMEOUT;
     }

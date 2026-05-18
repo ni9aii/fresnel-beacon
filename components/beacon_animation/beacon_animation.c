@@ -18,6 +18,10 @@
 // Beam trail: how many radians behind the leading edge stay lit
 #define TRAIL_RADIANS (M_PI / 2.5f)
 
+// Strobe timing
+#define STROBE_ON_MS    50   // 50ms on
+#define STROBE_OFF_MS   100  // 100ms off (200ms period)
+
 static inline rgb_t unpack_rgb(uint32_t rgb) {
     return (rgb_t){
         .r = (uint8_t) ((rgb >> 16) & 0xFF),
@@ -75,6 +79,94 @@ static void process_ipc_commands(void) {
     }
 }
 
+/* ---- Mode-specific render functions ---- */
+
+/**
+ * @brief Render BEACON mode: rotating beacon with trail.
+ */
+static void render_beacon_mode(renderer_t *renderer, float angle,
+                               const runtime_config_t *cfg) {
+    const float cx = (LED_MATRIX_COLS - 1) / 2.0f;
+    const float cy = (LED_MATRIX_ROWS - 1) / 2.0f;
+    rgb_t beam_color = unpack_rgb(cfg->color_rgb);
+    const float omega = 2.0f * (float) M_PI * cfg->speed_rpm / 60.0f; // rad/s
+
+    for (int y = 0; y < LED_MATRIX_ROWS; y++) {
+        for (int x = 0; x < LED_MATRIX_COLS; x++) {
+            float dx = x - cx;
+            float dy = y - cy;
+            if (dx == 0.0f && dy == 0.0f)
+                continue;
+
+            float pixel_angle = atan2f(dy, dx);
+            float diff = angle_diff(angle, pixel_angle);
+
+            if (diff < 0.0f || diff > TRAIL_RADIANS)
+                continue;
+
+            float t = 1.0f - (diff / TRAIL_RADIANS);
+            float brightness = t * t * cfg->brightness;
+            if (brightness > 1.0f)
+                brightness = 1.0f;
+
+            rgb_t color = {
+                .r = (uint8_t) (beam_color.r * brightness),
+                .g = (uint8_t) (beam_color.g * brightness),
+                .b = (uint8_t) (beam_color.b * brightness),
+            };
+            renderer_set_pixel(renderer, pixel_index(x, y), color);
+        }
+    }
+}
+
+/**
+ * @brief Render STROBE mode: flashing strobe effect.
+ */
+static void render_strobe_mode(renderer_t *renderer, uint32_t frame_count,
+                               const runtime_config_t *cfg) {
+    static const char *TAG = "strobe";
+    rgb_t color = unpack_rgb(cfg->color_rgb);
+
+    // 200ms period: 50ms on, 100ms off
+    uint32_t period_ms = STROBE_ON_MS + STROBE_OFF_MS;
+    uint32_t phase = (frame_count * FRAME_MS) % period_ms;
+
+    bool should_light = (phase < STROBE_ON_MS);
+
+    if (should_light) {
+        for (int i = 0; i < LED_MATRIX_ROWS * LED_MATRIX_COLS; i++) {
+            renderer_set_pixel(renderer, (uint8_t) i, color);
+        }
+    } else {
+        renderer_clear(renderer);
+    }
+}
+
+/**
+ * @brief Render AMBIENT mode: static ambient color.
+ */
+static void render_ambient_mode(renderer_t *renderer, const runtime_config_t *cfg) {
+    rgb_t color = unpack_rgb(cfg->color_rgb);
+
+    // Apply brightness to static color
+    color.r = (uint8_t) (color.r * cfg->brightness);
+    color.g = (uint8_t) (color.g * cfg->brightness);
+    color.b = (uint8_t) (color.b * cfg->brightness);
+
+    for (int i = 0; i < LED_MATRIX_ROWS * LED_MATRIX_COLS; i++) {
+        renderer_set_pixel(renderer, (uint8_t) i, color);
+    }
+}
+
+/**
+ * @brief Render OFF mode: all LEDs off.
+ */
+static void render_off_mode(renderer_t *renderer) {
+    renderer_clear(renderer);
+}
+
+/* ---- Main animation task ---- */
+
 esp_err_t beacon_animation_init(void) {
     runtime_config_t cfg = CONFIG_MANAGER_DEFAULTS();
     float speed_sec = BEACON_SPEED_DEFAULT_SEC;
@@ -98,23 +190,19 @@ void beacon_animation_task(void *arg) {
         return;
     }
 
-    const float cx = (LED_MATRIX_COLS - 1) / 2.0f;
-    const float cy = (LED_MATRIX_ROWS - 1) / 2.0f;
-    const float dt = FRAME_MS / 1000.0f;
     static const char *TAG = "beacon";
 
     float angle = 0.0f;
     TickType_t last_wake = xTaskGetTickCount();
     uint32_t iter = 0;
 
-    /* Skip watchdog registration in Wokwi simulation — RMT timing is not accurate */
+    /* Skip watchdog registration in Wokwi simulation */
 #ifndef WOKWI_SIMULATION
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
     ESP_LOGI(TAG, "Task watchdog registered (current task)");
 #endif
 
     while (1) {
-        /* Feed watchdog — frame loop must complete within WDT timeout (5s) */
 #ifndef WOKWI_SIMULATION
         esp_task_wdt_reset();
 #endif
@@ -130,51 +218,47 @@ void beacon_animation_task(void *arg) {
             ESP_LOGW(TAG, "config_manager_get failed, using defaults");
         }
 
-        const float omega = 2.0f * (float) M_PI * cfg.speed_rpm / 60.0f; // rad/s
-        rgb_t beam_color = unpack_rgb(cfg.color_rgb);
+        /* Render based on current mode */
+        animation_mode_t mode = (animation_mode_t) cfg.mode;
 
-        renderer_clear(renderer);
-
-        for (int y = 0; y < LED_MATRIX_ROWS; y++) {
-            for (int x = 0; x < LED_MATRIX_COLS; x++) {
-                float dx = x - cx;
-                float dy = y - cy;
-                /* cx/cy are exact half-integers, so dx/dy can only be 0.0f at center */
-                if (dx == 0.0f && dy == 0.0f)
-                    continue;
-
-                float pixel_angle = atan2f(dy, dx);
-
-                float diff = angle_diff(angle, pixel_angle);
-
-                if (diff < 0.0f || diff > TRAIL_RADIANS)
-                    continue;
-
-                // Quadratic falloff from leading edge → trail tip
-                float t = 1.0f - (diff / TRAIL_RADIANS);
-                float brightness = t * t * cfg.brightness;
-                if (brightness > 1.0f)
-                    brightness = 1.0f;
-
-                rgb_t color = {
-                    .r = (uint8_t) (beam_color.r * brightness),
-                    .g = (uint8_t) (beam_color.g * brightness),
-                    .b = (uint8_t) (beam_color.b * brightness),
-                };
-                renderer_set_pixel(renderer, pixel_index(x, y), color);
-            }
+        switch (mode) {
+        case ANIM_MODE_BEACON: {
+            const float omega = 2.0f * (float) M_PI * cfg.speed_rpm / 60.0f; // rad/s
+            const float dt = FRAME_MS / 1000.0f;
+            render_beacon_mode(renderer, angle, &cfg);
+            angle += omega * dt;
+            if (angle > (float) M_PI)
+                angle -= 2.0f * (float) M_PI;
+            else if (angle < -(float) M_PI)
+                angle += 2.0f * (float) M_PI;
+            break;
+        }
+        case ANIM_MODE_STROBE:
+            render_strobe_mode(renderer, iter, &cfg);
+            break;
+        case ANIM_MODE_AMBIENT:
+            render_ambient_mode(renderer, &cfg);
+            break;
+        case ANIM_MODE_OFF:
+            render_off_mode(renderer);
+            break;
+        default:
+            ESP_LOGW(TAG, "Unknown mode %d, falling back to BEACON", mode);
+            const float omega = 2.0f * (float) M_PI * cfg.speed_rpm / 60.0f;
+            const float dt = FRAME_MS / 1000.0f;
+            render_beacon_mode(renderer, angle, &cfg);
+            angle += omega * dt;
+            if (angle > (float) M_PI)
+                angle -= 2.0f * (float) M_PI;
+            else if (angle < -(float) M_PI)
+                angle += 2.0f * (float) M_PI;
+            break;
         }
 
         esp_err_t flush_ret = renderer_flush(renderer);
         if (flush_ret != ESP_OK) {
             ESP_LOGE(TAG, "renderer_flush failed: %s", esp_err_to_name(flush_ret));
         }
-
-        angle += omega * dt;
-        if (angle > (float) M_PI)
-            angle -= 2.0f * (float) M_PI;
-        else if (angle < -(float) M_PI)
-            angle += 2.0f * (float) M_PI;
 
         iter++;
         if (iter * FRAME_MS >= STACK_LOG_MS) {
@@ -185,7 +269,7 @@ void beacon_animation_task(void *arg) {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(FRAME_MS));
     }
 
-    // Task exit cleanup (should never reach here in normal operation)
+    /* Task exit cleanup (should never reach here in normal operation) */
 #ifndef WOKWI_SIMULATION
     ESP_ERROR_CHECK(esp_task_wdt_delete(NULL));
     ESP_LOGI(TAG, "Task watchdog unregistered");
