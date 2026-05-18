@@ -1,5 +1,5 @@
 #include "config_manager.h"
-#include "beacon_animation/beacon_animation.h"
+#include "beacon_animation.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
