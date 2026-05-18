@@ -83,7 +83,7 @@ jobs:
           key: esp-idf-v5.3.2-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', 'sdkconfig.defaults') }}
 
       - name: Build with ESP-IDF
-        uses: espressif/esp-idf-ci-action@v1.1.0
+        uses: espressif/esp-idf-ci-action@v1.2.0
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
