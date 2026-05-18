@@ -1,0 +1,38 @@
+---
+# clang-tidy configuration for fresnel-beacon
+# See: https://clang.llvm.org/extra/clang-tidy/checks/list.html
+
+# Checks to run
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  cert-*,
+  -cert-err58-cpp,
+  clang-analyzer-*,
+  -clang-analyzer-alpha*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-avoid-magic-numbers,
+  performance-*,
+  -performance-unnecessary-value-param,
+  portability-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+
+# Warnings as errors (optional, uncomment to enable)
+# WarningsAsErrors: ''
+
+# Format style
+FormatStyle: file
+
+# Check headers (optional)
+HeaderFilterRegex: '.*'
+
+# Ignore macros (ESP-IDF uses many macros)
+IgnoreMacros: false
+
+# System includes
+SystemHeaders: false
