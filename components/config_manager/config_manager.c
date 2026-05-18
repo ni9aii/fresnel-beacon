@@ -231,7 +231,8 @@ esp_err_t config_manager_set_color(uint32_t rgb) {
     bool was_masked = (rgb != masked);
 
     if (was_masked) {
-        ESP_LOGW(TAG, "Color masked from 0x%08X to 0x%06X (24-bit RGB)", (unsigned int) rgb, (unsigned int) masked);
+        ESP_LOGW(TAG, "Color masked from 0x%08X to 0x%06X (24-bit RGB)",
+                 (unsigned int) rgb, (unsigned int) masked);
     }
 
     s_config.color_rgb = masked;
