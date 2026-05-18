@@ -12,6 +12,7 @@
 #include "config_manager.h"
 #include "wifi_manager.h"
 #include "http_server.h"
+#include "mdns_service.h"
 
 static const char *TAG = "main";
 
@@ -105,6 +106,8 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(http_server_init());
     ESP_LOGI(TAG, "Fresnel Beacon started");
+    ESP_ERROR_CHECK(mdns_service_init());
+    ESP_LOGI(TAG, "mDNS service started");
     ESP_ERROR_CHECK(renderer_init(s_renderer, LED_MATRIX_COLS, LED_MATRIX_ROWS));
     ESP_LOGI(TAG, "renderer_init complete");
 
