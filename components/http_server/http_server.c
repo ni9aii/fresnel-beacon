@@ -2,6 +2,7 @@
 #include "config_manager.h"
 #include "ipc.h"
 #include "wifi_manager.h"
+#include "ota_manager.h"
 #include "esp_log.h"
 #include "esp_err.h"
 
@@ -340,6 +341,52 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+static esp_err_t api_ota_post_handler(httpd_req_t *req) {
+    if (!check_auth(req)) {
+        httpd_resp_set_status(req, "401 Unauthorized");
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, "{\"error\":\"unauthorized\"}", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
+    char buf[512];
+    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (ret <= 0) {
+        ESP_LOGW(TAG, "OTA request body empty");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "empty body");
+        return ESP_FAIL;
+    }
+    buf[ret] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    if (root == NULL) {
+        ESP_LOGW(TAG, "OTA JSON parse error");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
+        return ESP_FAIL;
+    }
+
+    cJSON *url_item = cJSON_GetObjectItem(root, "url");
+    if (url_item == NULL || !cJSON_IsString(url_item)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing 'url' field");
+        return ESP_FAIL;
+    }
+
+    const char *url = url_item->valuestring;
+    cJSON_Delete(root);
+
+    esp_err_t err = ota_manager_start(url);
+    if (err != ESP_OK) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, "{\"error\":\"OTA failed\"}", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, "{\"status\":\"ok\",\"message\":\"OTA started\"}", HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
 /* ---------- GET / ---------- */
 
 static const char s_index_html[] =
@@ -522,6 +569,9 @@ static const httpd_uri_t uri_config = {.uri = "/api/config",
                                        .handler = api_config_post_handler,
                                        .user_ctx = NULL};
 
+static const httpd_uri_t uri_ota = {
+    .uri = "/api/ota", .method = HTTP_POST, .handler = api_ota_post_handler, .user_ctx = NULL};
+
 static const httpd_uri_t uri_root = {
     .uri = "/", .method = HTTP_GET, .handler = root_get_handler, .user_ctx = NULL};
 
@@ -548,6 +598,10 @@ esp_err_t http_server_init(void) {
     err = httpd_register_uri_handler(s_server, &uri_config);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "Failed to register config handler: %s", esp_err_to_name(err));
+    }
+    err = httpd_register_uri_handler(s_server, &uri_ota);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to register OTA handler: %s", esp_err_to_name(err));
     }
 
     ESP_LOGI(TAG, "HTTP server started");
