@@ -3,6 +3,7 @@
 #include "ipc.h"
 #include "wifi_manager.h"
 #include "ota_manager.h"
+#include "auth.h"
 #include "esp_log.h"
 #include "esp_err.h"
 
@@ -152,6 +153,10 @@ static esp_err_t api_status_get_handler(httpd_req_t *req) {
 /* ---------- POST /api/config ---------- */
 
 static esp_err_t api_config_post_handler(httpd_req_t *req) {
+    if (auth_validate(req) != ESP_OK) {
+        auth_send_401(req);
+        return ESP_FAIL;
+    }
     if (!check_rate_limit()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Rate limit exceeded");
         return ESP_FAIL;
@@ -342,10 +347,8 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
 }
 
 static esp_err_t api_ota_post_handler(httpd_req_t *req) {
-    if (!check_auth(req)) {
-        httpd_resp_set_status(req, "401 Unauthorized");
-        httpd_resp_set_type(req, "application/json");
-        httpd_resp_send(req, "{\"error\":\"unauthorized\"}", HTTPD_RESP_USE_STRLEN);
+    if (auth_validate(req) != ESP_OK) {
+        auth_send_401(req);
         return ESP_FAIL;
     }
 
