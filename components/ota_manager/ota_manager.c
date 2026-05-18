@@ -40,7 +40,7 @@ esp_err_t ota_manager_start(const char *url) {
             &(esp_http_client_config_t){
                 .url = url,
                 .timeout_ms = 30000,
-                .cert_pem = NULL, /* TODO: Add server certificate */
+                .cert_pem = NULL, /* Server certificate required for production */
             },
     };
 

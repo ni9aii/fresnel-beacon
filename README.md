@@ -25,6 +25,9 @@ A real lighthouse rotates its optics around a fixed light source. This project i
 ## Features
 
 - [x] Core beacon animation (rotating beam sweep with quadratic falloff)
+- [x] **4 animation modes** — BEACON, STROBE, AMBIENT, OFF
+- [x] **Input validation** — speed, brightness, color, mode clamping with warnings
+- [x] **Error handling** — esp_err_t propagation, cleanup on failure
 - [x] Unit tests (beacon math, LED driver logic)
 - [x] CI pipeline (build, static analysis, Wokwi simulation)
 - [x] Task watchdog and stack monitoring
@@ -34,8 +37,12 @@ A real lighthouse rotates its optics around a fixed light source. This project i
   - WiFi STA + AP fallback (AP password derived from MAC)
   - HTTP server with embedded Web UI
 - [x] Configurable rotation speed (0.5-20 sec per rotation)
-- [ ] Multiple light modes (strobe, ambient)
-- [ ] Brightness control
+- [x] **Brightness control** (0.0-1.0)
+- [x] **Color picker** with presets and live preview
+- [x] **HTTP Basic Auth** for REST API
+- [x] **OTA updates** (HTTPS-only)
+- [x] **mDNS service discovery** (fresnel-beacon.local)
+- [x] **Renderer abstraction** (mock + LED renderers)
 
 ## Firmware Architecture
 
@@ -44,6 +51,7 @@ app_main
 ├── config_manager_init()          — load config from NVS
 ├── wifi_manager_init()            — STA + AP fallback
 ├── http_server_start()            — REST API + Web UI
+├── mdns_service_init()            — mDNS advertisement
 └── beacon_animation_task          — main animation loop
     ├── Per-frame: clear matrix, compute beam, set pixels, flush
     ├── process_ipc_commands()     — apply config updates from queue
@@ -63,7 +71,7 @@ fresnel-beacon/
 │   ├── led_driver/               — RMT-based WS2812B driver
 │   │   ├── led_driver.c
 │   │   └── include/led_driver.h
-│   ├── beacon_animation/         — Beacon pattern generator
+│   ├── beacon_animation/         — Animation mode state machine
 │   │   ├── beacon_animation.c
 │   │   └── include/
 │   │       ├── beacon_animation.h
@@ -77,9 +85,21 @@ fresnel-beacon/
 │   ├── http_server/              — REST API + embedded Web UI
 │   │   ├── http_server.c
 │   │   └── include/http_server.h
-│   └── wifi_manager/             — WiFi STA/AP + event handling
-│       ├── wifi_manager.c
-│       └── include/wifi_manager.h
+│   ├── wifi_manager/             — WiFi STA/AP + event handling
+│   │   ├── wifi_manager.c
+│   │   └── include/wifi_manager.h
+│   ├── renderer/                 — Renderer abstraction (vtable)
+│   │   ├── renderer.c
+│   │   └── include/renderer.h
+│   ├── auth/                     — HTTP Basic Auth
+│   │   ├── auth.c
+│   │   └── include/auth.h
+│   ├── ota_manager/              — OTA updates (HTTPS)
+│   │   ├── ota_manager.c
+│   │   └── include/ota_manager.h
+│   └── mdns_service/             — mDNS service discovery
+│       ├── mdns_service.c
+│       └── include/mdns_service.h
 ├── test/
 │   ├── test_beacon_math.c        — Host unit tests (angle math, pixel mapping)
 │   ├── test_led_driver.c         — Host unit tests (GRB order, bounds)
@@ -94,6 +114,7 @@ fresnel-beacon/
 ├── wokwi.toml                    — Wokwi config
 ├── scenario.yaml                 — Wokwi test scenario
 ├── .clang-format                 — Code style (LLVM, 4-space, 100 col)
+├── .clang-tidy                   — Static analysis config
 └── .github/workflows/
     ├── ci.yml                    — Test, analyze, build + simulate
     └── release.yml               — Build + publish on v* tags
@@ -101,19 +122,37 @@ fresnel-beacon/
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/status` | Current config + WiFi status (JSON) |
-| POST | `/api/config` | Update config (JSON body: `speed`, `mode`, `brightness`, `color`) |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/status` | No | Current config + WiFi status (JSON) |
+| POST | `/api/config` | Yes | Update config (speed, mode, brightness, color) |
+| POST | `/api/ota` | Yes | Start OTA update (HTTPS URL required) |
 
-**POST example:**
+**POST /api/config example:**
 ```bash
 curl -X POST http://fresnel-beacon.local/api/config \
   -H "Content-Type: application/json" \
-  -d '{"speed":12.5,"mode":0,"brightness":0.8,"color":"0xFFA028"}'
+  -H "Authorization: Basic $(echo -n 'admin:fresnel' | base64)" \
+  -d '{"speed_rpm":12.5,"mode":0,"brightness":0.8,"color":"0xFFA028"}'
+```
+
+**POST /api/ota example:**
+```bash
+curl -X POST http://fresnel-beacon.local/api/ota \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic $(echo -n 'admin:fresnel' | base64)" \
+  -d '{"url":"https://example.com/firmware.bin"}'
 ```
 
 **AP mode:** When WiFi connection fails, device starts AP with SSID `Fresnel-Beacon-XXYY` and password derived from MAC address (printed in serial log on boot).
+
+## Security
+
+- **HTTP Basic Auth** — All mutating endpoints require authentication
+- **HTTPS-only OTA** — HTTP URLs rejected with 400 error
+- **Input validation** — All config parameters clamped to safe ranges
+- **WiFi credential isolation** — Separate struct with mutex-protected API
+- **Rate limiting** — Atomic counter for HTTP requests
 
 ## Development Environment
 
@@ -155,7 +194,7 @@ Three jobs on every push to `main`:
 | Job | Description |
 |-----|-------------|
 | **test** | Compile and run host unit tests + formatting check |
-| **analyze** | cppcheck static analysis |
+| **analyze** | cppcheck + clang-tidy static analysis |
 | **build-and-simulate** | ESP-IDF build, size report, Wokwi simulation |
 
 Releases are published automatically on `v*` tags.
