@@ -43,7 +43,7 @@ static esp_err_t led_mutex_init(void) {
     return ESP_OK;
 }
 
-void led_driver_init(void) {
+esp_err_t led_driver_init(void) {
     ESP_LOGI(TAG, "init RMT on GPIO %d, %d LEDs", LED_MATRIX_GPIO, LED_MATRIX_LEN);
 
     rmt_tx_channel_config_t chan_cfg = {
@@ -53,16 +53,55 @@ void led_driver_init(void) {
         .mem_block_symbols = 128,
         .trans_queue_depth = 4,
     };
-    ESP_ERROR_CHECK(rmt_new_tx_channel(&chan_cfg, &s_led_chan));
-    ESP_ERROR_CHECK(rmt_new_bytes_encoder(&s_encoder_cfg, &s_led_encoder));
-    ESP_ERROR_CHECK(rmt_enable(s_led_chan));
 
-    ESP_ERROR_CHECK(led_mutex_init());
+    esp_err_t ret;
+
+    ret = rmt_new_tx_channel(&chan_cfg, &s_led_chan);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create RMT TX channel: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = rmt_new_bytes_encoder(&s_encoder_cfg, &s_led_encoder);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create RMT bytes encoder: %s", esp_err_to_name(ret));
+        rmt_del_channel(s_led_chan);
+        s_led_chan = NULL;
+        return ret;
+    }
+
+    ret = rmt_enable(s_led_chan);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to enable RMT channel: %s", esp_err_to_name(ret));
+        rmt_del_encoder(s_led_encoder);
+        s_led_encoder = NULL;
+        rmt_del_channel(s_led_chan);
+        s_led_chan = NULL;
+        return ret;
+    }
+
+    ret = led_mutex_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init LED mutex: %s", esp_err_to_name(ret));
+        rmt_del_encoder(s_led_encoder);
+        s_led_encoder = NULL;
+        rmt_del_channel(s_led_chan);
+        s_led_chan = NULL;
+        return ret;
+    }
 
     memset(s_pixels_pending, 0, sizeof(s_pixels_pending));
     memset(s_pixels_ready, 0, sizeof(s_pixels_ready));
     memset(s_pixels_active, 0, sizeof(s_pixels_active));
-    ESP_ERROR_CHECK(led_driver_flush());
+
+    ret = led_driver_flush();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to flush initial frame: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "LED driver initialized successfully");
+    return ESP_OK;
 }
 
 esp_err_t led_driver_set_pixel(uint8_t index, rgb_t color) {

@@ -16,7 +16,7 @@ TEST_CASE("led_driver header compiles and types are correct", "[led_driver]") {
 
 TEST_CASE("led_driver function symbols are declared", "[led_driver]") {
     /* Ensure function pointers are resolvable (link check) */
-    void (*init_fn)(void) = led_driver_init;
+    esp_err_t (*init_fn)(void) = led_driver_init;
     esp_err_t (*set_fn)(uint8_t, rgb_t) = led_driver_set_pixel;
     esp_err_t (*flush_fn)(void) = led_driver_flush;
     void (*clear_fn)(void) = led_driver_clear;

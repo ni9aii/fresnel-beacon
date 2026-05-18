@@ -7,6 +7,7 @@
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <string.h>
+#include <stdbool.h>
 
 static const char *TAG = "config_manager";
 
@@ -129,12 +130,23 @@ esp_err_t config_manager_set_speed(float rpm) {
     if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
         return ESP_ERR_TIMEOUT;
     }
-    // Basic validation: speed must be positive
-    if (rpm <= 0.0f) {
-        xSemaphoreGive(s_config_mutex);
-        return ESP_ERR_INVALID_ARG;
+
+    float clamped = rpm;
+    bool was_clamped = false;
+
+    if (rpm < 0.1f) {
+        clamped = 0.1f;
+        was_clamped = true;
+    } else if (rpm > 60.0f) {
+        clamped = 60.0f;
+        was_clamped = true;
     }
-    s_config.speed_rpm = rpm;
+
+    if (was_clamped) {
+        ESP_LOGW(TAG, "Speed clamped from %.1f to %.1f rpm [0.1, 60.0]", rpm, clamped);
+    }
+
+    s_config.speed_rpm = clamped;
     xSemaphoreGive(s_config_mutex);
     return ESP_OK;
 }
@@ -179,7 +191,23 @@ esp_err_t config_manager_set_brightness(float brightness) {
     if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
         return ESP_ERR_TIMEOUT;
     }
-    s_config.brightness = brightness;
+
+    float clamped = brightness;
+    bool was_clamped = false;
+
+    if (brightness < 0.0f) {
+        clamped = 0.0f;
+        was_clamped = true;
+    } else if (brightness > 1.0f) {
+        clamped = 1.0f;
+        was_clamped = true;
+    }
+
+    if (was_clamped) {
+        ESP_LOGW(TAG, "Brightness clamped from %.2f to %.2f [0.0, 1.0]", brightness, clamped);
+    }
+
+    s_config.brightness = clamped;
     xSemaphoreGive(s_config_mutex);
     return ESP_OK;
 }
@@ -191,7 +219,15 @@ esp_err_t config_manager_set_color(uint32_t rgb) {
     if (xSemaphoreTake(s_config_mutex, portMAX_DELAY) != pdTRUE) {
         return ESP_ERR_TIMEOUT;
     }
-    s_config.color_rgb = rgb;
+
+    uint32_t masked = rgb & 0xFFFFFF;
+    bool was_masked = (rgb != masked);
+
+    if (was_masked) {
+        ESP_LOGW(TAG, "Color masked from 0x%08X to 0x%06X (24-bit RGB)", (unsigned int) rgb, (unsigned int) masked);
+    }
+
+    s_config.color_rgb = masked;
     xSemaphoreGive(s_config_mutex);
     return ESP_OK;
 }

@@ -96,7 +96,13 @@ static esp_err_t led_renderer_init(renderer_t *self, uint8_t cols, uint8_t rows)
     if (cols > RENDERER_MAX_COLS || rows > RENDERER_MAX_ROWS) {
         return ESP_ERR_INVALID_ARG;
     }
-    led_driver_init();
+
+    esp_err_t err = led_driver_init();
+    if (err != ESP_OK) {
+        ESP_LOGE("renderer", "led_driver_init failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
     self->fb.cols = cols;
     self->fb.rows = rows;
     memset(self->fb.pixels, 0, sizeof(self->fb.pixels));
