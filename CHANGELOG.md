@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-18
+
+### Added
+
+- **Animation modes** — 4 modes with state machine (BEACON, STROBE, AMBIENT, OFF), mode-specific render functions, HTTP API support.
+- **Input validation** — Config parameters now validated and clamped (speed: [0.1, 60.0] rpm, brightness: [0.0, 1.0], color: 24-bit RGB, mode: [0, ANIM_MODE_COUNT)), warnings logged on clamping.
+- **Error handling** — `led_driver_init()` returns `esp_err_t` with proper cleanup on RMT/encoder init failure, animation task checks error.
+- **CI static analysis** — clang-tidy job with bugprone/cert/performance checks (non-blocking), Dependabot for weekly GitHub Actions updates.
+
+### Changed
+
+- **Renderer abstraction** — already implemented (mock_renderer + led_renderer with function pointers).
+
+### Fixed
+
+- **[MINOR]** Invalid mode values — config_manager_set_mode() now clamps invalid modes to BEACON (0) with warning.
+
+### Security
+
+- All config inputs validated and clamped to safe ranges.
+- Invalid modes rejected and logged.
+
+### Performance
+
+- No performance changes.
+
+### Architecture
+
+- Animation modes cleanly separated into render functions.
+- Better error propagation in LED driver init.
+
 ## [0.3.0] — 2026-05-18
 
 ### Added
@@ -90,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task watchdog (`esp_task_wdt`) and stack high-water mark logging.
 - Wokwi simulation setup (`diagram.json`, `wokwi.toml`, `scenario.yaml`).
 
-[Unreleased]: https://github.com/ni9aii/fresnel-beacon/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ni9aii/fresnel-beacon/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ni9aii/fresnel-beacon/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ni9aii/fresnel-beacon/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ni9aii/fresnel-beacon/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ni9aii/fresnel-beacon/releases/tag/v0.1.0
