@@ -202,3 +202,11 @@ Releases are published automatically on `v*` tags.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## OTA partition validation
+
+```bash
+python scripts/validate_ota_partitions.py
+```
+
+Ensures `otadata` and at least two `ota_*` app slots exist in the partition table.
